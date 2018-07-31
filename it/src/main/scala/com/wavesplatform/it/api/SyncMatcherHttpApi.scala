@@ -89,8 +89,8 @@ object SyncMatcherHttpApi extends Assertions {
                      orderType: OrderType,
                      price: Long,
                      amount: Long,
+                     creationTime: Long = System.currentTimeMillis(),
                      timeToLive: Duration = 30.days - 1.seconds): Order = {
-      val creationTime        = System.currentTimeMillis()
       val timeToLiveTimestamp = creationTime + timeToLive.toMillis
       val matcherPublicKey    = m.publicKey
       val unsigned            = Order(node.publicKey, matcherPublicKey, pair, orderType, price, amount, creationTime, timeToLiveTimestamp, 300000, Array())
