@@ -25,7 +25,7 @@ class ExchangeTransactionSuite extends BaseTransactionSuite {
         name = assetName.getBytes(),
         description = assetDescription.getBytes(),
         quantity = someAssetAmount,
-        decimals = 8,
+        decimals = 2,
         reissuable = true,
         fee = 1.waves,
         timestamp = System.currentTimeMillis()
