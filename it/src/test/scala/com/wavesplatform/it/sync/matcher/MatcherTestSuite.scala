@@ -28,7 +28,7 @@ class MatcherTestSuite extends FreeSpec with Matchers with BeforeAndAfterAll wit
 
   private val aliceSellAmount = 500
 
-  "Check cross ordering between Alice and Bob " - {
+  "Check cross ordering between Alice and Bob" - {
     // Alice issues new asset
     val aliceAsset =
       aliceNode.issue(aliceNode.address, "AliceCoin", "AliceCoin for matcher's tests", AssetQuantity, 0, reissuable = false, 100000000L).id
@@ -84,11 +84,17 @@ class MatcherTestSuite extends FreeSpec with Matchers with BeforeAndAfterAll wit
         val order2 = matcherNode.placeOrder(bobNode, aliceWavesPair, OrderType.BUY, 2.waves * Order.PriceConstant, 200)
         order2.status shouldBe "OrderAccepted"
 
+        println(s"""order1 = ${order1.message.id}
+             |order2 = ${order2.message.id}
+           """.stripMargin)
+
         matcherNode.waitOrderStatus(aliceWavesPair, order1.message.id, "PartiallyFilled")
         matcherNode.waitOrderStatus(aliceWavesPair, order2.message.id, "Filled")
 
-        //matcherNode.orderHistoryByPair(bobNode, aliceWavesPair) should contain(order2.message.id)
-        //matcherNode.fullOrderHistory(bobNode) should contain(order2.message.id)
+        Thread.sleep(5000)
+
+        matcherNode.orderHistoryByPair(bobNode, aliceWavesPair).map(_.id) should contain(order2.message.id)
+        matcherNode.fullOrderHistory(bobNode).map(_.id) should contain(order2.message.id)
 
         nodes.waitForHeightArise()
 
@@ -148,9 +154,10 @@ class MatcherTestSuite extends FreeSpec with Matchers with BeforeAndAfterAll wit
 
         // Where were 2 sells that should fulfill placed order
         matcherNode.waitOrderStatus(aliceWavesPair, order4.message.id, "Filled")
+        val txIds = matcherNode.transactionsByOrder(order4.message.id).map(_.id)
 
         // Check balances
-        nodes.waitForHeightArise()
+        txIds.foreach(nodes.waitForHeightAriseAndTxPresent)
         aliceNode.assertAssetBalance(aliceNode.address, aliceAsset, 950)
         bobNode.assertAssetBalance(bobNode.address, aliceAsset, 50)
 

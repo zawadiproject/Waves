@@ -80,7 +80,7 @@ object AsyncMatcherHttpApi extends Assertions {
       matcherPost(s"/matcher/orderbook/$amountAsset/$priceAsset/cancel", signedRequest.json).as[MatcherStatusResponse]
     }
 
-    def fullOrdersHistory(sender: Node) = {
+    def fullOrdersHistory(sender: Node): Future[Seq[OrderbookHistory]] = {
       val ts = System.currentTimeMillis()
       matcherGetWithSignature(s"/matcher/orderbook/${sender.publicKeyStr}", ts, signature(sender, ts)).as[Seq[OrderbookHistory]]
     }

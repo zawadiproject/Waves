@@ -338,6 +338,11 @@ class OrderBookActor(assetPair: AssetPair,
 
   private def processEvent(e: Event): Unit = {
     val st = Kamon.timer("matcher.orderbook.persist").refine("event" -> e.getClass.getSimpleName).start()
+//    persist(e) { _ =>
+//      st.stop()
+//      applyEvent(e)
+//      context.system.eventStream.publish(e)
+//    }
     persist(e)(_ => st.stop())
     applyEvent(e)
     context.system.eventStream.publish(e)

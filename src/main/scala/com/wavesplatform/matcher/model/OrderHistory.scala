@@ -86,6 +86,46 @@ class OrderHistory(db: DB, settings: MatcherSettings) {
   }
 
   def orderExecuted(event: OrderExecuted): Unit = db.readWrite { rw =>
+    import event.submitted.{order => o}
+
+    //if (event.) // status is filled
+    println(s"""counter info: ${orderInfo(event.counter.order.id())}
+         |submitted info: ${orderInfo(event.submitted.order.id())}
+       """.stripMargin)
+
+    val address   = event.counter.order.senderPublicKey.toAddress
+    val k         = MatcherKeys.addressOrdersSeqNr(address)
+    val lastSeqNr = db.get(MatcherKeys.addressOrdersSeqNr(address))
+
+//    println(s"""counter: ${DBUtils
+//      .ordersByAddress(db, event.counter.order.senderPublicKey.toAddress, Set.empty, false, 100)
+//      .map(_._1.id())
+//      .mkString(", ")}""")
+//    println(s"""submitted: ${DBUtils
+//      .ordersByAddress(db, event.submitted.order.senderPublicKey.toAddress, Set.empty, false, 100)
+//      .map(_._1.id())
+//      .mkString(", ")}""")
+
+    println(s"XXXX: $lastSeqNr")
+    val hasOrder = (lastSeqNr to 1 by -1).view
+      .flatMap { idx =>
+        val r = rw.get(MatcherKeys.addressOrders(address, idx))
+        println(s"idx = $idx, r = $r")
+        r
+      }
+      .map { x =>
+        println(x)
+        x
+      }
+      .exists(_.orderId == o.id())
+
+    if (!hasOrder) {
+      val nextSeqNr = lastSeqNr + 1
+      rw.put(k, nextSeqNr)
+      val spendAssetId = if (o.orderType == OrderType.BUY) o.assetPair.priceAsset else o.assetPair.amountAsset
+      rw.put(MatcherKeys.addressOrders(event.submitted.order.senderPublicKey, nextSeqNr), Some(OrderAssets(o.id(), spendAssetId)))
+    }
+
     saveOrder(rw, event.submitted.order)
     saveOrderInfo(rw, event)
     val v = Monoid.combine(Events.createOpenPortfolio(OrderAdded(event.submittedExecuted)), Events.createOpenPortfolio(event))
