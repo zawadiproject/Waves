@@ -141,7 +141,7 @@ object MessageMatcherResponse {
   implicit val messageMatcherResponseFormat: Format[MessageMatcherResponse] = Json.format
 }
 
-case class OrderbookHistory(id: String, `type`: String, amount: Long, price: Long, timestamp: Long, filled: Int, status: String)
+case class OrderbookHistory(id: String, `type`: String, amount: Long, price: Long, timestamp: Long, filled: Long, status: String)
 object OrderbookHistory {
   implicit val orderbookHistory: Format[OrderbookHistory] = Json.format
 }

@@ -71,6 +71,8 @@ class TradeBalanceAndRoundingTestSuite
       val aliceOrderId = matcherNode.placeOrder(aliceOrder).message.id
       matcherNode.waitOrderStatus(wavesUsdPair, aliceOrderId, "Filled", 1.minute)
 
+      matcherNode.orderBook(wavesUsdPair).bids shouldBe empty
+
       // Bob wants to buy some USD
       matcherNode.waitOrderStatus(wavesUsdPair, bobOrder1Id, "PartiallyFilled", 1.minute)
 

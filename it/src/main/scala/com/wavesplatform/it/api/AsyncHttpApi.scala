@@ -98,8 +98,10 @@ object AsyncHttpApi extends Assertions {
     def post(url: String, f: RequestBuilder => RequestBuilder = identity): Future[Response] =
       retrying(f(_post(url).withApiKey(n.apiKey)).build())
 
-    def postJson[A: Writes](path: String, body: A): Future[Response] =
+    def postJson[A: Writes](path: String, body: A): Future[Response] = {
+      println(stringify(toJson(body)))
       post(path, stringify(toJson(body)))
+    }
 
     def post(path: String, body: String): Future[Response] =
       post(s"${n.nodeApiEndpoint}$path", (rb: RequestBuilder) => rb.setHeader("Content-type", "application/json;charset=utf-8").setBody(body))
