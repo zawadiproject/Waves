@@ -50,7 +50,7 @@ class MatcherTickersTestSuite
     }
 
     "issue tokens" in {
-      matcherNode.signedIssue(createSignedIssueRequest(IssueWctTx))
+      matcherNode.signedIssue(createSignedIssueRequest(IssueEightDigitAssetTx))
       nodes.waitForHeightArise()
 
     }
@@ -59,75 +59,60 @@ class MatcherTickersTestSuite
       //      assertNotFoundAndMessage(matcherNode.marketStatus(wctWavesPair), s"Invalid Asset ID: ${IssueWctTx.id()}")
     }
 
-    val bidPrice  = 423
+    val bidPrice  = 200
     val bidAmount = 1.waves
-    val askPrice  = 511
+    val askPrice  = 400
     val askAmount = 0.5.waves
 
     "place bid order" in {
-      matcherNode.placeOrder(aliceNode, wavesUsdPair, OrderType.BUY, bidPrice, bidAmount)
-      val aliceOrder = matcherNode.placeOrder(aliceNode, wavesUsdPair, OrderType.BUY, bidPrice, bidAmount).message.id
-      matcherNode.waitOrderStatus(wavesUsdPair, aliceOrder, "Accepted")
-      val r = matcherNode.marketStatus(wavesUsdPair)
+      matcherNode.placeOrder(aliceNode, edUsdPair, OrderType.BUY, bidPrice, bidAmount)
+      val aliceOrder = matcherNode.placeOrder(aliceNode, edUsdPair, OrderType.BUY, bidPrice, bidAmount).message.id
+      matcherNode.waitOrderStatus(edUsdPair, aliceOrder, "Accepted")
+      val r = matcherNode.marketStatus(edUsdPair)
       r.lastPrice shouldBe None
       r.lastSide shouldBe None
       r.bid shouldBe Some(bidPrice)
-      r.bidAmount shouldBe Some(bidAmount)
+      r.bidAmount shouldBe Some(2 * bidAmount)
       r.ask shouldBe None
       r.askAmount shouldBe None
     }
 
-    "place bid order" in {
-      matcherNode.placeOrder(aliceNode, wavesUsdPair, OrderType.BUY, askPrice, askAmount)
-      val aliceOrder = matcherNode.placeOrder(bobNode, wavesUsdPair, OrderType.SELL, askPrice, askAmount).message.id
-      matcherNode.waitOrderStatus(wavesUsdPair, aliceOrder, "Accepted")
-      val r = matcherNode.marketStatus(wavesUsdPair)
+    "place ask order" in {
+      matcherNode.placeOrder(bobNode, edUsdPair, OrderType.SELL, askPrice, askAmount)
+      val bobOrder = matcherNode.placeOrder(bobNode, edUsdPair, OrderType.SELL, askPrice, askAmount).message.id
+      matcherNode.waitOrderStatus(edUsdPair, bobOrder, "Accepted")
+      val r = matcherNode.marketStatus(edUsdPair)
       r.lastPrice shouldBe None
       r.lastSide shouldBe None
       r.bid shouldBe Some(bidPrice)
       r.bidAmount shouldBe Some(2 * bidAmount)
       r.ask shouldBe Some(askPrice)
-      r.askAmount shouldBe Some(askAmount * 2)
+      r.askAmount shouldBe Some(2 * askAmount)
     }
-  }
 
-  "Alice and Bob trade WAVES-USD" - {
-    nodes.waitForHeightArise()
-    val aliceWavesBalanceBefore = matcherNode.accountBalances(aliceNode.address)._1
-    val bobWavesBalanceBefore   = matcherNode.accountBalances(bobNode.address)._1
-    //
-    //    val price = 238
-    //    val buyOrderAmount = 425532L
-    //    val sellOrderAmount = 3100000000L
-    //
-    //    val correctedSellAmount = correctAmount(sellOrderAmount, price)
-    //
-    //    val adjustedAmount = receiveAmount(OrderType.BUY, price, buyOrderAmount)
-    //    val adjustedTotal = receiveAmount(OrderType.SELL, price, buyOrderAmount)
-    //
-    //    log.debug(s"correctedSellAmount: $correctedSellAmount, adjustedAmount: $adjustedAmount, adjustedTotal: $adjustedTotal")
-    //
-    //    "place usd-waves order" in {
-    //      // Alice wants to sell USD for Waves
-    //
-    //      val bobOrder1 = matcherNode.prepareOrder(bobNode, wavesUsdPair, OrderType.SELL, price, sellOrderAmount)
-    //      val bobOrder1Id = matcherNode.placeOrder(bobOrder1).message.id
-    //      matcherNode.waitOrderStatus(wavesUsdPair, bobOrder1Id, "Accepted", 1.minute)
-    //      matcherNode.reservedBalance(bobNode)("WAVES") shouldBe sellOrderAmount + matcherFee
-    //      matcherNode.tradableBalance(bobNode, wavesUsdPair)("WAVES") shouldBe bobWavesBalanceBefore - (sellOrderAmount + matcherFee)
-    //
-    //      val aliceOrder = matcherNode.prepareOrder(aliceNode, wavesUsdPair, OrderType.BUY, price, buyOrderAmount)
-    //      val aliceOrderId = matcherNode.placeOrder(aliceOrder).message.id
-    //      matcherNode.waitOrderStatusAndAmount(wavesUsdPair, aliceOrderId, "Filled", Some(420169L), 1.minute)
-    //
-    //      // Bob wants to buy some USD
-    //      matcherNode.waitOrderStatusAndAmount(wavesUsdPair, bobOrder1Id, "PartiallyFilled", Some(420169L), 1.minute)
-    //
-    //      // Each side get fair amount of assets
-    //      val exchangeTx = matcherNode.transactionsByOrder(aliceOrder.idStr()).headOption.getOrElse(fail("Expected an exchange transaction"))
-    //      nodes.waitForHeightAriseAndTxPresent(exchangeTx.id)
-    //    }
+    "match bid order" in {
+      val bobOrder = matcherNode.placeOrder(bobNode, edUsdPair, OrderType.SELL, bidPrice, askAmount).message.id
+      matcherNode.waitOrderStatus(edUsdPair, bobOrder, "Filled")
+      val r = matcherNode.marketStatus(edUsdPair)
+      r.lastPrice shouldBe Some(bidPrice)
+      r.lastSide shouldBe Some("sell")
+      r.bid shouldBe Some(bidPrice)
+      r.bidAmount shouldBe Some(2 * bidAmount - askAmount)
+      r.ask shouldBe Some(askPrice)
+      r.askAmount shouldBe Some(2 * askAmount)
+    }
 
+    "match ask order" in {
+      val aliceOrder = matcherNode.placeOrder(aliceNode, edUsdPair, OrderType.BUY, askPrice, bidAmount).message.id
+      matcherNode.waitOrderStatus(edUsdPair, aliceOrder, "Filled")
+      val r = matcherNode.marketStatus(edUsdPair)
+      r.lastPrice shouldBe Some(askPrice)
+      r.lastSide shouldBe Some("buy")
+      r.bid shouldBe Some(bidPrice)
+      r.bidAmount shouldBe Some(2 * bidAmount - askAmount)
+      r.ask shouldBe None
+      r.askAmount shouldBe None
+    }
   }
 
 }
@@ -160,8 +145,8 @@ object MatcherTickersTestSuite {
   private val alicePk   = PrivateKeyAccount.fromSeed(aliceSeed).right.get
   private val bobPk     = PrivateKeyAccount.fromSeed(bobSeed).right.get
 
-  val usdAssetName = "USD-X"
-  val wctAssetName = "WCT-X"
+  val usdAssetName             = "USD-X"
+  val eightDigitAssetAssetName = "Eight-X"
   val IssueUsdTx: IssueTransactionV1 = IssueTransactionV1
     .selfSigned(
       sender = alicePk,
@@ -176,13 +161,13 @@ object MatcherTickersTestSuite {
     .right
     .get
 
-  val IssueWctTx: IssueTransactionV1 = IssueTransactionV1
+  val IssueEightDigitAssetTx: IssueTransactionV1 = IssueTransactionV1
     .selfSigned(
       sender = bobPk,
-      name = wctAssetName.getBytes(),
+      name = eightDigitAssetAssetName.getBytes(),
       description = "asset description".getBytes(),
       quantity = defaultAssetQuantity,
-      decimals = Decimals,
+      decimals = 8,
       reissuable = false,
       fee = 1.waves,
       timestamp = System.currentTimeMillis()
@@ -190,16 +175,16 @@ object MatcherTickersTestSuite {
     .right
     .get
 
-  val UsdId: AssetId = IssueUsdTx.id()
-  val WctId          = IssueWctTx.id()
+  val UsdId: AssetId    = IssueUsdTx.id()
+  val EightDigitAssetId = IssueEightDigitAssetTx.id()
 
-  val wctUsdPair = AssetPair(
-    amountAsset = Some(WctId),
+  val edUsdPair = AssetPair(
+    amountAsset = Some(EightDigitAssetId),
     priceAsset = Some(UsdId)
   )
 
   val wctWavesPair = AssetPair(
-    amountAsset = Some(WctId),
+    amountAsset = Some(EightDigitAssetId),
     priceAsset = None
   )
 
