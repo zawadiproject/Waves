@@ -190,6 +190,8 @@ class CompositeBlockchain(inner: Blockchain, maybeDiff: => Option[Diff]) extends
 
   override def lastBlock: Option[Block] = inner.lastBlock
 
+  override def lastBlockFees: Option[Diff] = inner.lastBlockFees
+
   override def blockBytes(height: Int): Option[Array[Type]] = inner.blockBytes(height)
 
   override def blockBytes(blockId: ByteStr): Option[Array[Type]] = inner.blockBytes(blockId)
@@ -211,7 +213,7 @@ class CompositeBlockchain(inner: Blockchain, maybeDiff: => Option[Diff]) extends
 
   override def featureVotes(height: Int): Map[Short, Int] = inner.featureVotes(height)
 
-  override def append(diff: Diff, block: Block): Unit = inner.append(diff, block)
+  override def append(diff: Diff, feeDiff: Diff, block: Block): Unit = inner.append(diff, feeDiff, block)
 
   override def rollbackTo(targetBlockId: ByteStr): Seq[Block] = inner.rollbackTo(targetBlockId)
 }

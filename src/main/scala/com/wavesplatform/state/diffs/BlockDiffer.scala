@@ -40,22 +40,15 @@ object BlockDiffer extends ScorexLogging with Instrumented {
 
   def fromBlock[Constraint <: MiningConstraint](settings: FunctionalitySettings,
                                                 blockchain: Blockchain,
-                                                maybePrevBlock: Option[Block],
+                                                maybePrevBlockFees: Option[Diff],
+                                                maybePrevBlockTimestamp: Option[Long],
                                                 block: Block,
-                                                constraint: Constraint): Either[ValidationError, (Diff, Constraint)] = {
+                                                constraint: Constraint): Either[ValidationError, (Diff, Diff, Constraint)] = {
     val blockSigner = block.signerData.generator.toAddress
     val stateHeight = blockchain.height
 
     // height switch is next after activation
     val ng4060switchHeight = blockchain.featureActivationHeight(BlockchainFeatures.NG.id).getOrElse(Int.MaxValue)
-
-    lazy val prevBlockFeeDistr: Option[Diff] =
-      if (stateHeight > ng4060switchHeight)
-        maybePrevBlock.map(
-          prevBlock =>
-            Diff.empty.copy(portfolios = Map(blockSigner ->
-              clearSponsorship(blockchain, prevBlock.prevBlockFeePart(), stateHeight, settings))))
-      else None
 
     lazy val currentBlockFeeDistr =
       if (stateHeight < ng4060switchHeight)
@@ -63,16 +56,15 @@ object BlockDiffer extends ScorexLogging with Instrumented {
       else
         None
 
-    val prevBlockTimestamp = maybePrevBlock.map(_.timestamp)
     for {
       _ <- block.signaturesValid()
       r <- apply(
         settings,
         blockchain,
         constraint,
-        prevBlockTimestamp,
+        maybePrevBlockTimestamp,
         block.signerData.generator,
-        prevBlockFeeDistr,
+        maybePrevBlockFees,
         currentBlockFeeDistr,
         block.timestamp,
         block.transactionData,
@@ -86,7 +78,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
                                                      prevBlockTimestamp: Option[Long],
                                                      micro: MicroBlock,
                                                      timestamp: Long,
-                                                     constraint: Constraint): Either[ValidationError, (Diff, Constraint)] = {
+                                                     constraint: Constraint): Either[ValidationError, (Diff, Diff, Constraint)] = {
     for {
       // microblocks are processed within block which is next after 40-only-block which goes on top of activated height
       _ <- Either.cond(blockchain.activatedFeatures.contains(BlockchainFeatures.NG.id), (), ActivationError(s"MicroBlocks are not yet activated"))
@@ -115,7 +107,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
                                                     currentBlockFeeDistr: Option[Diff],
                                                     timestamp: Long,
                                                     txs: Seq[Transaction],
-                                                    heightDiff: Int): Either[ValidationError, (Diff, Constraint)] = {
+                                                    heightDiff: Int): Either[ValidationError, (Diff, Diff, Constraint)] = {
     def updateConstraint(constraint: Constraint, blockchain: Blockchain, tx: Transaction): Constraint =
       constraint.put(blockchain, tx).asInstanceOf[Constraint]
 
@@ -171,7 +163,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
             Monoid.combine(diffWithLeasePatches, CancelInvalidLeaseIn(composite(blockchain, diffWithLeasePatches)))
           else diffWithLeasePatches
 
-        (diffWithCancelledLeaseIns, constraint)
+        (diffWithCancelledLeaseIns, d, constraint) ///d -> fees
     }
   }
 }

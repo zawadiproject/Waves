@@ -120,7 +120,12 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
                 val height            = lastBlockId.fold(0)(blockchain.unsafeHeightOf)
                 val miningConstraints = MiningConstraints(settings.minerSettings, blockchain, height)
                 BlockDiffer
-                  .fromBlock(functionalitySettings, blockchain, blockchain.lastBlock, block, miningConstraints.total)
+                  .fromBlock(functionalitySettings,
+                             blockchain,
+                             blockchain.lastBlockFees,
+                             blockchain.lastBlockTimestamp,
+                             block,
+                             miningConstraints.total)
                   .map(r => Some((r, Seq.empty[Transaction])))
             }
           case Some(ng) =>
@@ -130,7 +135,12 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
                 val miningConstraints = MiningConstraints(settings.minerSettings, blockchain, height)
 
                 BlockDiffer
-                  .fromBlock(functionalitySettings, blockchain, blockchain.lastBlock, block, miningConstraints.total)
+                  .fromBlock(functionalitySettings,
+                             blockchain,
+                             blockchain.lastBlockFees,
+                             blockchain.lastBlockTimestamp,
+                             block,
+                             miningConstraints.total)
                   .map { r =>
                     log.trace(
                       s"Better liquid block(score=${block.blockScore()}) received and applied instead of existing(score=${ng.base.blockScore()})")
@@ -146,7 +156,12 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
                   val miningConstraints = MiningConstraints(settings.minerSettings, blockchain, height)
 
                   BlockDiffer
-                    .fromBlock(functionalitySettings, blockchain, blockchain.lastBlock, block, miningConstraints.total)
+                    .fromBlock(functionalitySettings,
+                               blockchain,
+                               blockchain.lastBlockFees,
+                               blockchain.lastBlockTimestamp,
+                               block,
+                               miningConstraints.total)
                     .map(r => Some((r, Seq.empty[Transaction])))
                 }
               } else
@@ -171,14 +186,14 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
 
                     val expiredTransactions = blockchain.forgetTransactions((_, txTs) => block.timestamp - txTs > 2 * 60 * 60 * 1000)
 
-                    val diff = BlockDiffer
-                      .fromBlock(
-                        functionalitySettings,
-                        CompositeBlockchain.composite(blockchain, referencedLiquidDiff),
-                        Some(referencedForgedBlock),
-                        block,
-                        constraint
-                      )
+                    val diff = BlockDiffer.fromBlock(
+                      functionalitySettings,
+                      CompositeBlockchain.composite(blockchain, referencedLiquidDiff),
+                      None, ///
+                      Some(referencedForgedBlock.timestamp),
+                      block,
+                      constraint
+                    )
 
                     diff.left.foreach { _ =>
                       log.trace(s"Could not append new block, remembering ${expiredTransactions.size} transaction(s)")
@@ -186,7 +201,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
                     }
 
                     diff.map { hardenedDiff =>
-                      blockchain.append(referencedLiquidDiff, referencedForgedBlock)
+                      blockchain.append(referencedLiquidDiff, hardenedDiff._2, referencedForgedBlock)
                       TxsInBlockchainStats.record(ng.transactions.size)
                       Some((hardenedDiff, discarded.flatMap(_.transactionData)))
                     }
@@ -198,10 +213,10 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
               }
         }).map {
           _ map {
-            case ((newBlockDiff, updatedTotalConstraint), discarded) =>
+            case ((newBlockDiff, newBlockFees, updatedTotalConstraint), discarded) =>
               val height = blockchain.height + 1
               restTotalConstraint = updatedTotalConstraint
-              ngState = Some(new NgState(block, newBlockDiff, featuresApprovedWithBlock(block)))
+              ngState = Some(new NgState(block, newBlockDiff, newBlockFees, featuresApprovedWithBlock(block)))
               lastBlockId.foreach(id => internalLastBlockInfo.onNext(LastBlockInfo(id, height, score, blockchainReady)))
               if ((block.timestamp > time
                     .getTimestamp() - settings.minerSettings.intervalAfterLastBlockThenGenerationIsAllowed.toMillis) || (height % 100 == 0)) {
@@ -247,7 +262,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
                 BlockDiffer.fromMicroBlock(functionalitySettings, this, blockchain.lastBlockTimestamp, microBlock, ng.base.timestamp, mdConstraint)
               }
             } yield {
-              val (diff, updatedMdConstraint) = r
+              val (diff, _, updatedMdConstraint) = r
               restTotalConstraint = updatedMdConstraint.constraints.head
               ng.append(microBlock, diff, System.currentTimeMillis)
               log.info(s"$microBlock appended")
@@ -340,6 +355,8 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
   override def score: BigInt = blockchain.score + ngState.fold(BigInt(0))(_.bestLiquidBlock.blockScore())
 
   override def lastBlock: Option[Block] = ngState.map(_.bestLiquidBlock).orElse(blockchain.lastBlock)
+
+  override def lastBlockFees: Option[Diff] = blockchain.lastBlockFees ///ngState.map(_.?).orElse(
 
   override def blockBytes(blockId: ByteStr): Option[Array[Byte]] =
     (for {
@@ -512,7 +529,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
       blockchain.collectLposPortfolios(pf) ++ b.result()
     }
 
-  override def append(diff: Diff, block: Block): Unit = blockchain.append(diff, block)
+  override def append(diff: Diff, feeDiff: Diff, block: Block): Unit = blockchain.append(diff, feeDiff, block)
 
   override def rollbackTo(targetBlockId: AssetId): Seq[Block] = blockchain.rollbackTo(targetBlockId)
 
