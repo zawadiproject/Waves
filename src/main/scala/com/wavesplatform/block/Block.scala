@@ -120,8 +120,6 @@ case class Block private (override val timestamp: Long,
     extends BlockHeader(timestamp, version, reference, signerData, consensusData, transactionData.length, featureVotes)
     with Signed {
 
-  import Block._
-
   val sender = signerData.generator
 
   private val transactionField = TransactionsBlockField(version.toInt, transactionData)
@@ -166,9 +164,6 @@ case class Block private (override val timestamp: Long,
         case Some(assetId) => Portfolio(0L, LeaseBalance.empty, Map(assetId -> feeVolume))
       }
   }))
-
-  val prevBlockFeePart: Coeval[Portfolio] =
-    Coeval.evalOnce(Monoid[Portfolio].combineAll(transactionData.map(tx => tx.feeDiff().minus(tx.feeDiff().multiply(CurrentBlockFeePart)))))
 
   protected val signatureValid: Coeval[Boolean] =
     Coeval.evalOnce(crypto.verify(signerData.signature.arr, bytesWithoutSignature(), signerData.generator.publicKey))

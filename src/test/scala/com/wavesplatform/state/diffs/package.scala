@@ -14,37 +14,38 @@ package object diffs extends WithState with Matchers {
 
   def assertDiffEi(preconditions: Seq[Block], block: Block, fs: FunctionalitySettings = TFS.Enabled)(
       assertion: Either[ValidationError, Diff] => Unit): Unit = withStateAndHistory(fs) { state =>
-    def differ(blockchain: Blockchain, b: Block) = BlockDiffer.fromBlock(fs, blockchain, None, b, MiningConstraint.Unlimited).map(_._1)
+    def differ(blockchain: Blockchain, b: Block) = BlockDiffer.fromBlock(fs, blockchain, None, None, b, MiningConstraint.Unlimited)
 
     preconditions.foreach { precondition =>
-      val preconditionDiffEI = differ(state, precondition)
-      val preconditionDiff   = preconditionDiffEI.explicitGet()
-      state.append(preconditionDiff, precondition)
+      val (preconditionDiff, preconditionFees, _) = differ(state, precondition).explicitGet()
+      state.append(preconditionDiff, preconditionFees, precondition)
     }
     val totalDiff1 = differ(state, block)
-    assertion(totalDiff1)
+    assertion(totalDiff1.map(_._1))
   }
 
   def assertDiffAndState(preconditions: Seq[Block], block: Block, fs: FunctionalitySettings = TFS.Enabled)(
       assertion: (Diff, Blockchain) => Unit): Unit = withStateAndHistory(fs) { state =>
-    def differ(blockchain: Blockchain, b: Block) = BlockDiffer.fromBlock(fs, blockchain, None, b, MiningConstraint.Unlimited).map(_._1)
+    def differ(blockchain: Blockchain, prevFees: Option[Portfolio], b: Block) =
+      BlockDiffer.fromBlock(fs, blockchain, prevFees, None, b, MiningConstraint.Unlimited)
 
-    preconditions.foreach { precondition =>
-      val preconditionDiff = differ(state, precondition).explicitGet()
-      state.append(preconditionDiff, precondition)
+    val pFees = preconditions.foldLeft[Option[Portfolio]](None) { (prevFees, precondition) =>
+      val (preconditionDiff, preconditionFees, _) = differ(state, prevFees, precondition).explicitGet()
+      state.append(preconditionDiff, preconditionFees, precondition)
+      Some(preconditionFees)
     }
-    val totalDiff1 = differ(state, block).explicitGet()
-    state.append(totalDiff1, block)
+    val (totalDiff1, totalFees1, _) = differ(state, pFees, block).explicitGet()
+    state.append(totalDiff1, totalFees1, block)
     assertion(totalDiff1, state)
   }
 
   def assertDiffAndState(fs: FunctionalitySettings)(test: (Seq[Transaction] => Either[ValidationError, Unit]) => Unit): Unit =
     withStateAndHistory(fs) { state =>
-      def differ(blockchain: Blockchain, b: Block) = BlockDiffer.fromBlock(fs, blockchain, None, b, MiningConstraint.Unlimited).map(_._1)
+      def differ(blockchain: Blockchain, b: Block) = BlockDiffer.fromBlock(fs, blockchain, None, None, b, MiningConstraint.Unlimited)
 
       test(txs => {
         val block = TestBlock.create(txs)
-        differ(state, block).map(diff => state.append(diff, block))
+        differ(state, block).map(diff => state.append(diff._1, diff._2, block))
       })
     }
 

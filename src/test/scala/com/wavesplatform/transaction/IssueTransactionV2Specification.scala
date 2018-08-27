@@ -66,6 +66,7 @@ class IssueTransactionV2Specification extends PropSpec with PropertyChecks with 
       .right
       .get
 
+    println("bytes " + tx.bodyBytes().mkString(", ")) ///
     tx.json() shouldEqual js
   }
 

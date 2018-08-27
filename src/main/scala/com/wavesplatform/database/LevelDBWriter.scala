@@ -124,10 +124,9 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
     }
   }
 
-  override def lastBlockFees: Option[Diff] = readOnly { db =>
-    /// what a clusterfuck
+  override def lastBlockFees: Option[Portfolio] = readOnly { db =>
     db.fromHistory(Keys.blockFeeHistory, Keys.blockFee)
-      .map(fee => Diff.empty.copy(portfolios = Map(lastBlock.get.signerData.generator.toAddress -> Portfolio(fee, LeaseBalance(0, 0), Map.empty))))
+      .map(fee => Portfolio(fee, LeaseBalance(0, 0), Map.empty))
   }
 
   override def accountData(address: Address): AccountDataInfo = readOnly { db =>
@@ -199,7 +198,7 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
   }
 
   override protected def doAppend(block: Block,
-                                  feeDiff: Diff,
+                                  fees: Portfolio,
                                   newAddresses: Map[Address, BigInt],
                                   wavesBalances: Map[BigInt, Long],
                                   assetBalances: Map[BigInt, Map[ByteStr, Long]],
@@ -220,7 +219,7 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
     rw.put(Keys.heightOf(block.uniqueId), Some(height))
     rw.put(Keys.lastAddressId, Some(loadMaxAddressId() + newAddresses.size))
     rw.put(Keys.score(height), rw.get(Keys.score(height - 1)) + block.blockScore())
-    rw.put(Keys.blockFee(height), feeDiff.portfolios.head._2.balance) ///straighten
+    rw.put(Keys.blockFee(height), fees.balance)
 
     for ((address, id) <- newAddresses) {
       rw.put(Keys.addressId(address), Some(id))
