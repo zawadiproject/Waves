@@ -39,6 +39,7 @@ class BlockchainUpdaterBlockMicroblockSequencesSameTransactionsTest
               d.portfolio(last.signerData.generator.toAddress).balance
             }
         }
+        println(s"test finalMinerBalances=$finalMinerBalances") ///
         finalMinerBalances.toSet.size shouldBe 1
     }
   }

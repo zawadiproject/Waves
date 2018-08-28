@@ -96,7 +96,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
                                                     currentBlockFeeDistr: Option[Portfolio],
                                                     timestamp: Long,
                                                     txs: Seq[Transaction],
-                                                    heightDiff: Int): Either[ValidationError, (Diff, Portfolio, Constraint)] = {
+                                                    heightDiff: Int): Either[ValidationError, (Diff, Portfolio, Constraint)] = { ///Option[Portfolio]
     def updateConstraint(constraint: Constraint, blockchain: Blockchain, tx: Transaction): Constraint =
       constraint.put(blockchain, tx).asInstanceOf[Constraint]
 
@@ -106,6 +106,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
     val txsDiffEi = currentBlockFeeDistr match {
       case Some(feeDistr) =>
         val initDiff = Diff.empty.copy(portfolios = Map(blockGenerator -> feeDistr))
+        println(s"BD oo h=${blockchain.height}, feeDistr = ${feeDistr.balance} WAVES") ///
         txs
           .foldLeft((initDiff, initConstraint).asRight[ValidationError]) {
             case (r @ Left(_), _) => r
@@ -119,10 +120,10 @@ object BlockDiffer extends ScorexLogging with Instrumented {
                   (currDiff.combine(newDiff), updatedConstraint)
                 }
           }
-          .map { case (diff, constraint) => (diff, feeDistr, constraint) }
+          .map { case (diff, constraint) => (diff, Portfolio.empty, constraint) }
       case None =>
         val prevBlockFees = prevBlockFeeDistr.map(p => p.minus(p.multiply(Block.CurrentBlockFeePart))).orEmpty
-        println(s"BD from prev block: ${prevBlockFees.balance} WAVES") ///
+        println(s"BD NG h=${blockchain.height}, prev block fee = ${prevBlockFees.balance} WAVES") ///
 //        val initDiff = Diff.empty.copy(portfolios = Map(blockGenerator -> prevBlockFees))
         txs
           .foldLeft((Diff.empty, Portfolio.empty, initConstraint).asRight[ValidationError]) {
@@ -142,7 +143,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
             case (diff, totalFees, constraint) =>
               val minerFees      = totalFees.multiply(Block.CurrentBlockFeePart)
               val totalMinerFees = prevBlockFees.combine(minerFees) /// simplify
-              println(s"BD fees: total = ${totalFees.balance}, miner = ${minerFees.balance}, total miner = ${totalMinerFees.balance}") ///
+              println(s"BD NG fees: total = ${totalFees.balance}, miner = ${minerFees.balance}, total miner = ${totalMinerFees.balance}") ///
               (diff.copy(portfolios = diff.portfolios.combine(Map(blockGenerator -> totalMinerFees))), totalFees, constraint)
           }
     }

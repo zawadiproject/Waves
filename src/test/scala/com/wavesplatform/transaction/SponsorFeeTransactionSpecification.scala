@@ -1,17 +1,17 @@
 package com.wavesplatform.transaction
 
 import com.wavesplatform.TransactionGen
+import com.wavesplatform.account.PublicKeyAccount
+import com.wavesplatform.features.BlockchainFeatures._
+import com.wavesplatform.lagonaki.mocks.TestBlock.{create => block}
 import com.wavesplatform.settings.{Constants, TestFunctionalitySettings}
 import com.wavesplatform.state.diffs._
 import com.wavesplatform.state.{ByteStr, EitherExt2}
+import com.wavesplatform.transaction.assets.{IssueTransactionV1, SponsorFeeTransaction}
+import com.wavesplatform.transaction.transfer.TransferTransactionV1
 import org.scalatest._
 import org.scalatest.prop.PropertyChecks
 import play.api.libs.json.Json
-import com.wavesplatform.account.PublicKeyAccount
-import com.wavesplatform.features.BlockchainFeatures._
-import com.wavesplatform.lagonaki.mocks.TestBlock
-import com.wavesplatform.transaction.assets.{IssueTransactionV1, SponsorFeeTransaction}
-import com.wavesplatform.transaction.transfer.TransferTransactionV1
 
 class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks with Matchers with TransactionGen {
   val One = 100000000L
@@ -113,15 +113,15 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
       transfer = TransferTransactionV1.selfSigned(None, acc, acc, 1, ts + 30, Some(issue.id()), Sp, Array()).explicitGet()
     } yield (acc, genesis, issue, sponsor, transfer)
 
-    setup.sample match { ///forAll
-      case Some((acc, genesis, issue, sponsor, transfer)) =>
-        val b0 = TestBlock.create(acc, Seq(genesis, issue, sponsor))
-        val b1 = TestBlock.create(acc, Seq(transfer))
-        val b2 = TestBlock.create(acc, Seq.empty)
+    forAll(setup) {
+      case (acc, genesis, issue, sponsor, transfer) =>
+        val b0 = block(acc, Seq(genesis, issue, sponsor))
+        val b1 = block(acc, Seq(transfer))
+        val b2 = block(acc, Seq.empty)
 
         assertDiffAndState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
           case (diff, state) =>
-            println(s"b2 ${state.balance(acc, None) - ENOUGH_AMT}")
+            state.balance(acc, None) shouldBe ENOUGH_AMT
         }
     }
   }
@@ -138,15 +138,15 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
       transfer2 = TransferTransactionV1.selfSigned(None, acc, acc, 1, ts + 110, Some(issue.id()), Sp + 7, Array()).explicitGet()
     } yield (acc, genesis, issue, sponsor, transfer1, transfer2)
 
-    setup.sample match { ///forAll
-      case Some((acc, genesis, issue, sponsor, transfer1, transfer2)) =>
-        val b0 = TestBlock.create(acc, Seq(genesis, issue, sponsor))
-        val b1 = TestBlock.create(acc, Seq(transfer1, transfer2))
-        val b2 = TestBlock.create(acc, Seq.empty)
+    forAll(setup) {
+      case (acc, genesis, issue, sponsor, transfer1, transfer2) =>
+        val b0 = block(acc, Seq(genesis, issue, sponsor))
+        val b1 = block(acc, Seq(transfer1, transfer2))
+        val b2 = block(acc, Seq.empty)
 
         assertDiffAndState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
           case (diff, state) =>
-            println(s"b2 ${state.balance(acc, None) - ENOUGH_AMT}")
+            state.balance(acc, None) shouldBe ENOUGH_AMT
         }
     }
   }
@@ -163,23 +163,15 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
       transfer2 = TransferTransactionV1.selfSigned(None, acc, acc, 1, ts + 210, Some(issue.id()), 100, Array()).explicitGet()
     } yield (acc, genesis, issue, sponsor1, transfer1, sponsor2, transfer2)
 
-    setup.sample match { ///forAll
-      case Some((acc, genesis, issue, sponsor1, transfer1, sponsor2, transfer2)) =>
-        val b0 = TestBlock.create(acc, Seq(genesis, issue, sponsor1))
-        val b1 = TestBlock.create(acc, Seq(transfer1, sponsor2, transfer2))
-        val b2 = TestBlock.create(acc, Seq.empty)
+    forAll(setup) {
+      case (acc, genesis, issue, sponsor1, transfer1, sponsor2, transfer2) =>
+        val b0 = block(acc, Seq(genesis, issue, sponsor1))
+        val b1 = block(acc, Seq(transfer1, sponsor2, transfer2))
+        val b2 = block(acc, Seq.empty)
 
-        assertDiffAndState(Seq(), b0, NgAndSponsorshipSettings) {
-          case (diff, state) =>
-            println(s"b0 ${state.balance(acc, None) - ENOUGH_AMT}")
-        }
-        assertDiffAndState(Seq(b0), b1, NgAndSponsorshipSettings) {
-          case (diff, state) =>
-            println(s"b1 ${state.balance(acc, None) - ENOUGH_AMT}")
-        }
         assertDiffAndState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
           case (diff, state) =>
-            println(s"b2 ${state.balance(acc, None) - ENOUGH_AMT}")
+            state.balance(acc, None) shouldBe ENOUGH_AMT
         }
     }
   }

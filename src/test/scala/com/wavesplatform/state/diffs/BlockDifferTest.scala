@@ -7,10 +7,9 @@ import com.wavesplatform.account.PrivateKeyAccount
 import com.wavesplatform.block.Block
 import com.wavesplatform.db.WithState
 import com.wavesplatform.lagonaki.mocks.TestBlock
-import com.wavesplatform.mining.MiningConstraint
 import com.wavesplatform.settings.FunctionalitySettings
-import com.wavesplatform.state.{Blockchain, Diff, EitherExt2, Portfolio}
-import com.wavesplatform.transaction.{GenesisTransaction, ValidationError}
+import com.wavesplatform.state.{Blockchain, Diff, EitherExt2}
+import com.wavesplatform.transaction.GenesisTransaction
 import org.scalatest.{FreeSpecLike, Matchers}
 import com.wavesplatform.crypto._
 
@@ -110,8 +109,6 @@ class BlockDifferTest extends FreeSpecLike with Matchers with BlockGen with With
     }
   }
 
-  //TODO: Use functionality settings and activate NG in preactivated features
-
   private def assertDiff(blocks: Seq[Block], ngAtHeight: Int)(assertion: (Diff, Blockchain) => Unit): Unit = {
     val fs = FunctionalitySettings(
       featureCheckBlocksPeriod = ngAtHeight / 2,
@@ -129,24 +126,8 @@ class BlockDifferTest extends FreeSpecLike with Matchers with BlockGen with With
       preActivatedFeatures = Map[Short, Int]((2, ngAtHeight)),
       doubleFeaturesPeriodsAfterHeight = Int.MaxValue
     )
-    assertDiffEiWithPrev(blocks.init, blocks.last, fs)(assertion)
+    assertDiffAndState(blocks.init, blocks.last, fs)(assertion)
   }
-
-  private def assertDiffEiWithPrev(preconditions: Seq[Block], block: Block, fs: FunctionalitySettings)(assertion: (Diff, Blockchain) => Unit): Unit =
-    withStateAndHistory(fs) { bc =>
-      def differ(prev: Option[Block], b: Block): Either[ValidationError, (Diff, Portfolio, MiningConstraint)] =
-        BlockDiffer.fromBlock(fs, bc, prev.map(_.feesPortfolio()), prev.map(_.timestamp), b, MiningConstraint.Unlimited)
-
-      zipWithPrev(preconditions).foreach {
-        case (prev, b) =>
-          val (diff, fees, _) = differ(prev, b).explicitGet()
-          bc.append(diff, fees, b)
-      }
-
-      val (totalDiff1, fees, _) = differ(preconditions.lastOption, block).explicitGet()
-      bc.append(totalDiff1, fees, block)
-      assertion(totalDiff1, bc)
-    }
 
   private def getTwoMinersBlockChain(from: PrivateKeyAccount, to: PrivateKeyAccount, numPayments: Int): Seq[Block] = {
     val ts                   = System.currentTimeMillis() - 100000

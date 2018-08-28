@@ -26,17 +26,17 @@ package object diffs extends WithState with Matchers {
 
   def assertDiffAndState(preconditions: Seq[Block], block: Block, fs: FunctionalitySettings = TFS.Enabled)(
       assertion: (Diff, Blockchain) => Unit): Unit = withStateAndHistory(fs) { state =>
-    def differ(blockchain: Blockchain, prevFees: Option[Portfolio], b: Block) =
-      BlockDiffer.fromBlock(fs, blockchain, prevFees, None, b, MiningConstraint.Unlimited)
+    def differ(blockchain: Blockchain, prevBlockFees: Option[Portfolio], b: Block) =
+      BlockDiffer.fromBlock(fs, blockchain, prevBlockFees, None, b, MiningConstraint.Unlimited)
 
-    val pFees = preconditions.foldLeft[Option[Portfolio]](None) { (prevFees, precondition) =>
-      val (preconditionDiff, preconditionFees, _) = differ(state, prevFees, precondition).explicitGet()
-      state.append(preconditionDiff, preconditionFees, precondition)
-      Some(preconditionFees)
+    val preconditionFees = preconditions.foldLeft[Option[Portfolio]](None) { (prevBlockFees, curBlock) =>
+      val (diff, fees, _) = differ(state, prevBlockFees, curBlock).explicitGet()
+      state.append(diff, fees, curBlock)
+      Some(fees)
     }
-    val (totalDiff1, totalFees1, _) = differ(state, pFees, block).explicitGet()
-    state.append(totalDiff1, totalFees1, block)
-    assertion(totalDiff1, state)
+    val (diff, fees, _) = differ(state, preconditionFees, block).explicitGet()
+    state.append(diff, fees, block)
+    assertion(diff, state)
   }
 
   def assertDiffAndState(fs: FunctionalitySettings)(test: (Seq[Transaction] => Either[ValidationError, Unit]) => Unit): Unit =
@@ -60,8 +60,4 @@ package object diffs extends WithState with Matchers {
     assertDiffEi(preconditions, block, fs)(_ should produce(errorMessage))
 
   def produce(errorMessage: String): ProduceError = new ProduceError(errorMessage)
-
-  def zipWithPrev[A](seq: Seq[A]): Seq[(Option[A], A)] = {
-    seq.zipWithIndex.map { case (a, i) => (if (i == 0) None else Some(seq(i - 1)), a) }
-  }
 }

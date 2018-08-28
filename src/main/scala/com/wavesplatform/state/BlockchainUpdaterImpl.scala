@@ -189,7 +189,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
                     val diff = BlockDiffer.fromBlock(
                       functionalitySettings,
                       CompositeBlockchain.composite(blockchain, referencedLiquidDiff),
-                      None, ///
+                      blockchain.lastBlockFees, ///?
                       Some(referencedForgedBlock.timestamp),
                       block,
                       constraint
