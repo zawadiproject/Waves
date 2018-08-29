@@ -219,7 +219,6 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
     rw.put(Keys.heightOf(block.uniqueId), Some(height))
     rw.put(Keys.lastAddressId, Some(loadMaxAddressId() + newAddresses.size))
     rw.put(Keys.score(height), rw.get(Keys.score(height - 1)) + block.blockScore())
-    rw.put(Keys.blockFee(height), fees.balance)
 
     for ((address, id) <- newAddresses) {
       rw.put(Keys.addressId(address), Some(id))
@@ -357,6 +356,11 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
       rw.put(Keys.sponsorship(assetId)(height), sp)
       expiredKeys ++= updateHistory(rw, Keys.sponsorshipHistory(assetId), threshold, Keys.sponsorship(assetId))
     }
+
+    /// don't write this w/o sponsorship
+    rw.put(Keys.blockFee(height), fees.balance) /// rollback?
+//    println(s"LDBW wrote ${fees.balance}")      ///
+    expiredKeys ++= updateHistory(rw, Keys.blockFeeHistory, threshold, Keys.blockFee)
 
     rw.put(Keys.transactionIdsAtHeight(height), transactions.keys.toSeq)
 

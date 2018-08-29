@@ -103,7 +103,7 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
   }
 
   property("miner receives one satoshi less than sponsor pays") {
-    val Sp = 6
+    val Sp = 6 ///randomize
     val setup = for {
       acc <- accountGen
       ts  <- positiveIntGen
@@ -121,7 +121,7 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
 
         assertDiffAndState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
           case (diff, state) =>
-            state.balance(acc, None) shouldBe ENOUGH_AMT
+            state.balance(acc, None) - ENOUGH_AMT shouldBe 0
         }
     }
   }

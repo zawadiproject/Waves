@@ -23,7 +23,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
     if (height >= Sponsorship.sponsoredFeesSwitchHeight(blockchain, fs)) {
       val minerFee = portfolio.assets.map {
         case (assetId, assetFee) =>
-          val baseFee = blockchain.assetDescription(assetId).get.sponsorship
+          val baseFee = blockchain.assetDescription(assetId).get.sponsorship ///get
           Sponsorship.toWaves(assetFee, baseFee)
       }.sum
       Portfolio.empty.copy(balance = portfolio.balance + minerFee)
@@ -32,15 +32,34 @@ object BlockDiffer extends ScorexLogging with Instrumented {
 
   def fromBlock[Constraint <: MiningConstraint](settings: FunctionalitySettings,
                                                 blockchain: Blockchain,
-                                                maybePrevBlockFees: Option[Portfolio],
-                                                maybePrevBlockTimestamp: Option[Long],
+                                                maybePrevBlock: Option[Block],
                                                 block: Block,
                                                 constraint: Constraint): Either[ValidationError, (Diff, Portfolio, Constraint)] = {
-    // height switch is next after activation
-    val ng4060switchHeight = blockchain.featureActivationHeight(BlockchainFeatures.NG.id).getOrElse(Int.MaxValue)
+    val stateHeight = blockchain.height
 
-    lazy val currentBlockFeeDistr =
-      if (blockchain.height < ng4060switchHeight)
+    // height switch is next after activation
+    val ngHeight          = blockchain.featureActivationHeight(BlockchainFeatures.NG.id).getOrElse(Int.MaxValue)
+    val sponsorshipHeight = Sponsorship.sponsoredFeesSwitchHeight(blockchain, settings)
+
+    lazy val prevBlockFeeDistr: Option[Portfolio] =
+      if (stateHeight >= sponsorshipHeight) {
+        if (stateHeight > ngHeight) {
+          val z = blockchain.lastBlockFees.map(p => p.minus(p.multiply(Block.CurrentBlockFeePart)))
+//          println(s"> SP < $z") ///
+          z
+        } else {
+          blockchain.lastBlockFees
+        }
+      } else if (stateHeight > ngHeight) {
+        println(s"> NG < ${maybePrevBlock.map(_.prevBlockFeePart())}") ///
+        maybePrevBlock.map(_.prevBlockFeePart())
+      } else {
+//        println(s"> -- < None") ///
+        None
+      }
+
+    lazy val currentBlockFeeDistr: Option[Portfolio] =
+      if (blockchain.height < ngHeight)
         Some(block.feesPortfolio())
       else
         None
@@ -51,9 +70,9 @@ object BlockDiffer extends ScorexLogging with Instrumented {
         settings,
         blockchain,
         constraint,
-        maybePrevBlockTimestamp,
+        maybePrevBlock.map(_.timestamp),
         block.signerData.generator,
-        maybePrevBlockFees,
+        prevBlockFeeDistr,
         currentBlockFeeDistr,
         block.timestamp,
         block.transactionData,
@@ -122,8 +141,8 @@ object BlockDiffer extends ScorexLogging with Instrumented {
           }
           .map { case (diff, constraint) => (diff, Portfolio.empty, constraint) }
       case None =>
-        val prevBlockFees = prevBlockFeeDistr.map(p => p.minus(p.multiply(Block.CurrentBlockFeePart))).orEmpty
-        println(s"BD NG h=${blockchain.height}, prev block fee = ${prevBlockFees.balance} WAVES") ///
+        val prevBlockFees = prevBlockFeeDistr.orEmpty ///?
+        println(s"BD NG    h=${blockchain.height}, prev block fee = ${prevBlockFees.balance} WAVES") ///
 //        val initDiff = Diff.empty.copy(portfolios = Map(blockGenerator -> prevBlockFees))
         txs
           .foldLeft((Diff.empty, Portfolio.empty, initConstraint).asRight[ValidationError]) {
@@ -135,15 +154,17 @@ object BlockDiffer extends ScorexLogging with Instrumented {
                 Left(ValidationError.GenericError(s"Limit of txs was reached: $initConstraint -> $updatedConstraint"))
               else
                 txDiffer(updatedBlockchain, tx).map { newDiff =>
-                  val totalBlockFee = clearSponsorship(updatedBlockchain, tx.feeDiff(), currentBlockHeight, settings)
-                  (currDiff.combine(newDiff), currFees.combine(totalBlockFee), updatedConstraint)
+                  val feePortfolio = clearSponsorship(updatedBlockchain, tx.feeDiff(), currentBlockHeight, settings)
+                  println(s"BD NG    tx fee = $feePortfolio") ///
+                  (currDiff.combine(newDiff), currFees.combine(feePortfolio), updatedConstraint)
                 }
           }
           .map {
             case (diff, totalFees, constraint) =>
               val minerFees      = totalFees.multiply(Block.CurrentBlockFeePart)
               val totalMinerFees = prevBlockFees.combine(minerFees) /// simplify
-              println(s"BD NG fees: total = ${totalFees.balance}, miner = ${minerFees.balance}, total miner = ${totalMinerFees.balance}") ///
+              println(
+                s"BD NG    fees: total = ${totalFees.balance}, miner = ${minerFees.balance}, next block = ${totalFees.balance - totalFees.balance / 5 * 2}") ///
               (diff.copy(portfolios = diff.portfolios.combine(Map(blockGenerator -> totalMinerFees))), totalFees, constraint)
           }
     }

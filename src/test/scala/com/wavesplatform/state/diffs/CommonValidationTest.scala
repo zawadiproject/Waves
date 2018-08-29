@@ -48,7 +48,7 @@ class CommonValidationTest extends PropSpec with PropertyChecks with Matchers wi
       case (genesisBlock, transferTx) =>
         withStateAndHistory(settings) { blockchain =>
           val (preconditionDiff, preconditionFees, _) =
-            BlockDiffer.fromBlock(settings, blockchain, None, None, genesisBlock, MiningConstraint.Unlimited).explicitGet()
+            BlockDiffer.fromBlock(settings, blockchain, None, genesisBlock, MiningConstraint.Unlimited).explicitGet()
           blockchain.append(preconditionDiff, preconditionFees, genesisBlock)
 
           f(CommonValidation.checkFee(blockchain, settings, 1, transferTx))
@@ -71,7 +71,7 @@ class CommonValidationTest extends PropSpec with PropertyChecks with Matchers wi
       case (genesisBlock, transferTx) =>
         withStateAndHistory(settings) { blockchain =>
           val (preconditionDiff, preconditionFees, _) =
-            BlockDiffer.fromBlock(settings, blockchain, None, None, genesisBlock, MiningConstraint.Unlimited).explicitGet()
+            BlockDiffer.fromBlock(settings, blockchain, None, genesisBlock, MiningConstraint.Unlimited).explicitGet()
           blockchain.append(preconditionDiff, preconditionFees, genesisBlock)
 
           f(CommonValidation.checkFee(blockchain, settings, 1, transferTx))
@@ -94,7 +94,7 @@ class CommonValidationTest extends PropSpec with PropertyChecks with Matchers wi
       case (genesisBlock, transferTx) =>
         withStateAndHistory(settings) { blockchain =>
           val (preconditionDiff, preconditionFees, _) =
-            BlockDiffer.fromBlock(settings, blockchain, None, None, genesisBlock, MiningConstraint.Unlimited).explicitGet()
+            BlockDiffer.fromBlock(settings, blockchain, None, genesisBlock, MiningConstraint.Unlimited).explicitGet()
           blockchain.append(preconditionDiff, preconditionFees, genesisBlock)
 
           f(CommonValidation.checkFee(blockchain, settings, 1, transferTx))
@@ -121,7 +121,7 @@ class CommonValidationTest extends PropSpec with PropertyChecks with Matchers wi
       case (genesisBlock, transferTx) =>
         withStateAndHistory(settings) { blockchain =>
           val (preconditionDiff, preconditionFees, _) =
-            BlockDiffer.fromBlock(settings, blockchain, None, None, genesisBlock, MiningConstraint.Unlimited).explicitGet()
+            BlockDiffer.fromBlock(settings, blockchain, None, genesisBlock, MiningConstraint.Unlimited).explicitGet()
           blockchain.append(preconditionDiff, preconditionFees, genesisBlock)
 
           CommonValidation.checkFee(blockchain, settings, 1, transferTx) shouldBe 'right

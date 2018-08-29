@@ -120,12 +120,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
                 val height            = lastBlockId.fold(0)(blockchain.unsafeHeightOf)
                 val miningConstraints = MiningConstraints(settings.minerSettings, blockchain, height)
                 BlockDiffer
-                  .fromBlock(functionalitySettings,
-                             blockchain,
-                             blockchain.lastBlockFees,
-                             blockchain.lastBlockTimestamp,
-                             block,
-                             miningConstraints.total)
+                  .fromBlock(functionalitySettings, blockchain, blockchain.lastBlock, block, miningConstraints.total)
                   .map(r => Some((r, Seq.empty[Transaction])))
             }
           case Some(ng) =>
@@ -135,12 +130,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
                 val miningConstraints = MiningConstraints(settings.minerSettings, blockchain, height)
 
                 BlockDiffer
-                  .fromBlock(functionalitySettings,
-                             blockchain,
-                             blockchain.lastBlockFees,
-                             blockchain.lastBlockTimestamp,
-                             block,
-                             miningConstraints.total)
+                  .fromBlock(functionalitySettings, blockchain, blockchain.lastBlock, block, miningConstraints.total)
                   .map { r =>
                     log.trace(
                       s"Better liquid block(score=${block.blockScore()}) received and applied instead of existing(score=${ng.base.blockScore()})")
@@ -156,12 +146,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
                   val miningConstraints = MiningConstraints(settings.minerSettings, blockchain, height)
 
                   BlockDiffer
-                    .fromBlock(functionalitySettings,
-                               blockchain,
-                               blockchain.lastBlockFees,
-                               blockchain.lastBlockTimestamp,
-                               block,
-                               miningConstraints.total)
+                    .fromBlock(functionalitySettings, blockchain, blockchain.lastBlock, block, miningConstraints.total)
                     .map(r => Some((r, Seq.empty[Transaction])))
                 }
               } else
@@ -186,14 +171,14 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
 
                     val expiredTransactions = blockchain.forgetTransactions((_, txTs) => block.timestamp - txTs > 2 * 60 * 60 * 1000)
 
-                    val diff = BlockDiffer.fromBlock(
-                      functionalitySettings,
-                      CompositeBlockchain.composite(blockchain, referencedLiquidDiff),
-                      blockchain.lastBlockFees, ///?
-                      Some(referencedForgedBlock.timestamp),
-                      block,
-                      constraint
-                    )
+                    val diff = BlockDiffer
+                      .fromBlock(
+                        functionalitySettings,
+                        CompositeBlockchain.composite(blockchain, referencedLiquidDiff),
+                        Some(referencedForgedBlock),
+                        block,
+                        constraint
+                      )
 
                     diff.left.foreach { _ =>
                       log.trace(s"Could not append new block, remembering ${expiredTransactions.size} transaction(s)")
@@ -214,6 +199,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
         }).map {
           _ map {
             case ((newBlockDiff, newBlockFees, updatedTotalConstraint), discarded) =>
+              println(s"BUI newBlockFees=$newBlockFees") ///
               val height = blockchain.height + 1
               restTotalConstraint = updatedTotalConstraint
               ngState = Some(new NgState(block, newBlockDiff, newBlockFees, featuresApprovedWithBlock(block)))

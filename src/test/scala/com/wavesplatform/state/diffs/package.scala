@@ -14,7 +14,7 @@ package object diffs extends WithState with Matchers {
 
   def assertDiffEi(preconditions: Seq[Block], block: Block, fs: FunctionalitySettings = TFS.Enabled)(
       assertion: Either[ValidationError, Diff] => Unit): Unit = withStateAndHistory(fs) { state =>
-    def differ(blockchain: Blockchain, b: Block) = BlockDiffer.fromBlock(fs, blockchain, None, None, b, MiningConstraint.Unlimited)
+    def differ(blockchain: Blockchain, b: Block) = BlockDiffer.fromBlock(fs, blockchain, None, b, MiningConstraint.Unlimited)
 
     preconditions.foreach { precondition =>
       val (preconditionDiff, preconditionFees, _) = differ(state, precondition).explicitGet()
@@ -26,22 +26,22 @@ package object diffs extends WithState with Matchers {
 
   def assertDiffAndState(preconditions: Seq[Block], block: Block, fs: FunctionalitySettings = TFS.Enabled)(
       assertion: (Diff, Blockchain) => Unit): Unit = withStateAndHistory(fs) { state =>
-    def differ(blockchain: Blockchain, prevBlockFees: Option[Portfolio], b: Block) =
-      BlockDiffer.fromBlock(fs, blockchain, prevBlockFees, None, b, MiningConstraint.Unlimited)
+    def differ(blockchain: Blockchain, prevBlock: Option[Block], b: Block) =
+      BlockDiffer.fromBlock(fs, blockchain, prevBlock, b, MiningConstraint.Unlimited)
 
-    val preconditionFees = preconditions.foldLeft[Option[Portfolio]](None) { (prevBlockFees, curBlock) =>
-      val (diff, fees, _) = differ(state, prevBlockFees, curBlock).explicitGet()
+    preconditions.foldLeft[Option[Block]](None) { (prevBlock, curBlock) =>
+      val (diff, fees, _) = differ(state, prevBlock, curBlock).explicitGet()
       state.append(diff, fees, curBlock)
-      Some(fees)
+      Some(curBlock)
     }
-    val (diff, fees, _) = differ(state, preconditionFees, block).explicitGet()
+    val (diff, fees, _) = differ(state, preconditions.lastOption, block).explicitGet()
     state.append(diff, fees, block)
     assertion(diff, state)
   }
 
   def assertDiffAndState(fs: FunctionalitySettings)(test: (Seq[Transaction] => Either[ValidationError, Unit]) => Unit): Unit =
     withStateAndHistory(fs) { state =>
-      def differ(blockchain: Blockchain, b: Block) = BlockDiffer.fromBlock(fs, blockchain, None, None, b, MiningConstraint.Unlimited)
+      def differ(blockchain: Blockchain, b: Block) = BlockDiffer.fromBlock(fs, blockchain, None, b, MiningConstraint.Unlimited)
 
       test(txs => {
         val block = TestBlock.create(txs)
