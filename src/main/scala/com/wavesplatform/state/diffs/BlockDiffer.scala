@@ -19,26 +19,28 @@ import com.wavesplatform.transaction.{Transaction, ValidationError}
 
 object BlockDiffer extends ScorexLogging with Instrumented {
 
-  private def clearNgAndSponsorship(blockchain: Blockchain, portfolio: Portfolio, height: Int, fs: FunctionalitySettings): (Portfolio, Portfolio) = {
+  private def clearNgAndSponsorship(blockchain: Blockchain,
+                                    portfolio: Portfolio,
+                                    height: Int,
+                                    fs: FunctionalitySettings): (Portfolio, Option[Portfolio]) = {
     if (height >= Sponsorship.sponsoredFeesSwitchHeight(blockchain, fs)) {
       val minerFee = portfolio.assets.map {
         case (assetId, assetFee) =>
-          val baseFee = blockchain.assetDescription(assetId).get.sponsorship ///get
+          val baseFee = blockchain.assetDescription(assetId).get.sponsorship
           Sponsorship.toWaves(assetFee, baseFee)
       }.sum
       val totalPf = Portfolio.empty.copy(balance = portfolio.balance + minerFee)
       val curPf   = totalPf.multiply(Block.CurrentBlockFeePart)
       val nextPf  = totalPf.minus(curPf)
-//      println(s"BD clear ${curPf.balance} : ${nextPf.balance}")///
-      (curPf, nextPf)
-    } else (portfolio.multiply(Block.CurrentBlockFeePart), Portfolio.empty) ///, None
+      (curPf, Some(nextPf))
+    } else (portfolio.multiply(Block.CurrentBlockFeePart), None)
   }
 
   def fromBlock[Constraint <: MiningConstraint](settings: FunctionalitySettings,
                                                 blockchain: Blockchain,
                                                 maybePrevBlock: Option[Block],
                                                 block: Block,
-                                                constraint: Constraint): Either[ValidationError, (Diff, Portfolio, Constraint)] = {
+                                                constraint: Constraint): Either[ValidationError, (Diff, Option[Portfolio], Constraint)] = {
     val stateHeight = blockchain.height
 
     // height switch is next after activation
@@ -46,21 +48,11 @@ object BlockDiffer extends ScorexLogging with Instrumented {
     val sponsorshipHeight = Sponsorship.sponsoredFeesSwitchHeight(blockchain, settings)
 
     lazy val prevBlockFeeDistr: Option[Portfolio] =
-      if (stateHeight >= sponsorshipHeight) {
-        if (stateHeight > ngHeight) {
-          val z = blockchain.carryFee
-          println(s"> SP < $z") ///
-          z
-        } else {
-          blockchain.carryFee
-        }
-      } else if (stateHeight > ngHeight) {
-        println(s"> NG < ${maybePrevBlock.map(_.prevBlockFeePart())}") ///
+      if (stateHeight >= sponsorshipHeight)
+        blockchain.carryFee
+      else if (stateHeight > ngHeight)
         maybePrevBlock.map(_.prevBlockFeePart())
-      } else {
-//        println(s"> -- < None") ///
-        None
-      }
+      else None
 
     lazy val currentBlockFeeDistr: Option[Portfolio] =
       if (blockchain.height < ngHeight)
@@ -82,10 +74,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
         block.transactionData,
         1
       )
-    } yield {
-//      println(s"BD h=$stateHeight next block fees = ${r._2.balance}") ///
-      r
-    }
+    } yield r
   }
 
   def fromMicroBlock[Constraint <: MiningConstraint](settings: FunctionalitySettings,
@@ -93,7 +82,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
                                                      prevBlockTimestamp: Option[Long],
                                                      micro: MicroBlock,
                                                      timestamp: Long,
-                                                     constraint: Constraint): Either[ValidationError, (Diff, Portfolio, Constraint)] = {
+                                                     constraint: Constraint): Either[ValidationError, (Diff, Option[Portfolio], Constraint)] = {
     for {
       // microblocks are processed within block which is next after 40-only-block which goes on top of activated height
       _ <- Either.cond(blockchain.activatedFeatures.contains(BlockchainFeatures.NG.id), (), ActivationError(s"MicroBlocks are not yet activated"))
@@ -122,7 +111,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
                                                     currentBlockFeeDistr: Option[Portfolio],
                                                     timestamp: Long,
                                                     txs: Seq[Transaction],
-                                                    heightDiff: Int): Either[ValidationError, (Diff, Portfolio, Constraint)] = { ///Option[Portfolio]
+                                                    heightDiff: Int): Either[ValidationError, (Diff, Option[Portfolio], Constraint)] = {
     def updateConstraint(constraint: Constraint, blockchain: Blockchain, tx: Transaction): Constraint =
       constraint.put(blockchain, tx).asInstanceOf[Constraint]
 
@@ -132,28 +121,23 @@ object BlockDiffer extends ScorexLogging with Instrumented {
     val txsDiffEi = currentBlockFeeDistr match {
       case Some(feeDistr) =>
         val initDiff = Diff.empty.copy(portfolios = Map(blockGenerator -> feeDistr))
-        println(s"BD oo h=${blockchain.height}, feeDistr = ${feeDistr.balance} WAVES") ///
-        txs
-          .foldLeft((initDiff, initConstraint).asRight[ValidationError]) {
-            case (r @ Left(_), _) => r
-            case (Right((currDiff, currConstraint)), tx) =>
-              val updatedBlockchain = composite(blockchain, currDiff)
-              val updatedConstraint = updateConstraint(currConstraint, updatedBlockchain, tx)
-              if (updatedConstraint.isOverfilled)
-                Left(ValidationError.GenericError(s"Limit of txs was reached: $initConstraint -> $updatedConstraint"))
-              else
-                txDiffer(updatedBlockchain, tx).map { newDiff =>
-                  (currDiff.combine(newDiff), updatedConstraint)
-                }
-          }
-          .map { case (diff, constraint) => (diff, Portfolio.empty, constraint) }
-      case None =>
-        val prevBlockFees = prevBlockFeeDistr.orEmpty ///?
-        println(s"BD NG    h=${blockchain.height}, prev block fee = ${prevBlockFees.balance} WAVES") ///
-        val initDiff = Diff.empty.copy(portfolios = Map(blockGenerator -> prevBlockFees))
-        txs.foldLeft((initDiff, Portfolio.empty, initConstraint).asRight[ValidationError]) {
+        txs.foldLeft((initDiff, None, initConstraint).asRight[ValidationError]) {
           case (r @ Left(_), _) => r
-          case (Right((currDiff, nextBlockFees, currConstraint)), tx) =>
+          case (Right((currDiff, _, currConstraint)), tx) =>
+            val updatedBlockchain = composite(blockchain, currDiff)
+            val updatedConstraint = updateConstraint(currConstraint, updatedBlockchain, tx)
+            if (updatedConstraint.isOverfilled)
+              Left(ValidationError.GenericError(s"Limit of txs was reached: $initConstraint -> $updatedConstraint"))
+            else
+              txDiffer(updatedBlockchain, tx).map { newDiff =>
+                (currDiff.combine(newDiff), None, updatedConstraint)
+              }
+        }
+      case None =>
+        val initDiff = Diff.empty.copy(portfolios = Map(blockGenerator -> prevBlockFeeDistr.orEmpty))
+        txs.foldLeft[Either[ValidationError, (Diff, Option[Portfolio], Constraint)]](Right((initDiff, None, initConstraint))) {
+          case (r @ Left(_), _) => r
+          case (Right((currDiff, carryFee, currConstraint)), tx) =>
             val updatedBlockchain = composite(blockchain, currDiff)
             val updatedConstraint = updateConstraint(currConstraint, updatedBlockchain, tx)
             if (updatedConstraint.isOverfilled)
@@ -161,16 +145,15 @@ object BlockDiffer extends ScorexLogging with Instrumented {
             else
               txDiffer(updatedBlockchain, tx).map { newDiff =>
                 val (curPf, nextPf) = clearNgAndSponsorship(updatedBlockchain, tx.feeDiff(), currentBlockHeight, settings)
-                println(s"BD NG    tx fee = ${curPf.balance}, next fee = ${nextPf.balance}") ///
-                (currDiff.combine(newDiff.copy(portfolios = newDiff.portfolios.combine(Map(blockGenerator -> curPf)))),
-                 nextBlockFees.combine(nextPf),
-                 updatedConstraint)
+                val diff  = currDiff.combine(newDiff.copy(portfolios = newDiff.portfolios.combine(Map(blockGenerator -> curPf))))
+                val carry = carryFee.flatMap(pf => nextPf.map(_.combine(pf))).orElse(nextPf)
+                (diff, carry, updatedConstraint)
               }
         }
     }
 
     txsDiffEi.map {
-      case (d, fees, constraint) =>
+      case (d, carryFee, constraint) =>
         val diffWithCancelledLeases =
           if (currentBlockHeight == settings.resetEffectiveBalancesAtHeight)
             Monoid.combine(d, CancelAllLeases(composite(blockchain, d)))
@@ -186,7 +169,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
             Monoid.combine(diffWithLeasePatches, CancelInvalidLeaseIn(composite(blockchain, diffWithLeasePatches)))
           else diffWithLeasePatches
 
-        (diffWithCancelledLeaseIns, fees, constraint)
+        (diffWithCancelledLeaseIns, carryFee, constraint)
     }
   }
 }

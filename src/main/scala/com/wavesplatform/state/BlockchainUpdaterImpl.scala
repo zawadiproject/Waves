@@ -198,11 +198,10 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
               }
         }).map {
           _ map {
-            case ((newBlockDiff, newBlockFees, updatedTotalConstraint), discarded) =>
-              println(s"BUI newBlockFees=$newBlockFees") ///
+            case ((newBlockDiff, carryFee, updatedTotalConstraint), discarded) =>
               val height = blockchain.height + 1
               restTotalConstraint = updatedTotalConstraint
-              ngState = Some(new NgState(block, newBlockDiff, newBlockFees, featuresApprovedWithBlock(block)))
+              ngState = Some(new NgState(block, newBlockDiff, carryFee, featuresApprovedWithBlock(block)))
               lastBlockId.foreach(id => internalLastBlockInfo.onNext(LastBlockInfo(id, height, score, blockchainReady)))
               if ((block.timestamp > time
                     .getTimestamp() - settings.minerSettings.intervalAfterLastBlockThenGenerationIsAllowed.toMillis) || (height % 100 == 0)) {
@@ -342,7 +341,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
 
   override def lastBlock: Option[Block] = ngState.map(_.bestLiquidBlock).orElse(blockchain.lastBlock)
 
-  override def carryFee: Option[Portfolio] = ngState.map(_.baseBlockFees).orElse(blockchain.carryFee)
+  override def carryFee: Option[Portfolio] = ngState.flatMap(_.carryFee).orElse(blockchain.carryFee)
 
   override def blockBytes(blockId: ByteStr): Option[Array[Byte]] =
     (for {
@@ -515,7 +514,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
       blockchain.collectLposPortfolios(pf) ++ b.result()
     }
 
-  override def append(diff: Diff, fees: Portfolio, block: Block): Unit = blockchain.append(diff, fees, block)
+  override def append(diff: Diff, carryFee: Option[Portfolio], block: Block): Unit = blockchain.append(diff, carryFee, block)
 
   override def rollbackTo(targetBlockId: AssetId): Seq[Block] = blockchain.rollbackTo(targetBlockId)
 

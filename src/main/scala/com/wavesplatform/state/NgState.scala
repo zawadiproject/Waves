@@ -11,7 +11,7 @@ import com.wavesplatform.transaction.{DiscardedMicroBlocks, Transaction}
 
 import scala.collection.mutable.{ListBuffer => MList, Map => MMap}
 
-class NgState(val base: Block, val baseBlockDiff: Diff, val baseBlockFees: Portfolio, val approvedFeatures: Set[Short]) extends ScorexLogging {
+class NgState(val base: Block, val baseBlockDiff: Diff, val carryFee: Option[Portfolio], val approvedFeatures: Set[Short]) extends ScorexLogging {
 
   private val MaxTotalDiffs = 3
 

@@ -146,7 +146,7 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
 
         assertNgDiffState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
           case (diff, state) =>
-            state.balance(acc, None) shouldBe ENOUGH_AMT
+            state.balance(acc, None) - ENOUGH_AMT shouldBe 0
         }
     }
   }
@@ -171,7 +171,7 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
 
         assertNgDiffState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
           case (diff, state) =>
-            state.balance(acc, None) shouldBe ENOUGH_AMT
+            state.balance(acc, None) - ENOUGH_AMT shouldBe 0
         }
     }
   }

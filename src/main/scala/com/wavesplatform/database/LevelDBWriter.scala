@@ -198,7 +198,7 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
   }
 
   override protected def doAppend(block: Block,
-                                  fees: Portfolio,
+                                  carryFee: Option[Portfolio],
                                   newAddresses: Map[Address, BigInt],
                                   wavesBalances: Map[BigInt, Long],
                                   assetBalances: Map[BigInt, Map[ByteStr, Long]],
@@ -357,10 +357,10 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
       expiredKeys ++= updateHistory(rw, Keys.sponsorshipHistory(assetId), threshold, Keys.sponsorship(assetId))
     }
 
-    /// don't write this w/o sponsorship
-    rw.put(Keys.carryFee(height), fees.balance) /// rollback?
-//    println(s"LDBW wrote ${fees.balance}")      ///
-    expiredKeys ++= updateHistory(rw, Keys.carryFeeHistory, threshold, Keys.carryFee)
+    carryFee.foreach { carryPf =>
+      rw.put(Keys.carryFee(height), carryPf.balance)
+      expiredKeys ++= updateHistory(rw, Keys.carryFeeHistory, threshold, Keys.carryFee)
+    }
 
     rw.put(Keys.transactionIdsAtHeight(height), transactions.keys.toSeq)
 
@@ -474,6 +474,9 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
 
           rw.delete(Keys.blockAt(currentHeight))
           rw.delete(Keys.heightOf(discardedBlock.uniqueId))
+
+          rw.delete(Keys.carryFee(currentHeight))
+          rw.filterHistory(Keys.carryFeeHistory, currentHeight)
 
           if (activatedFeatures.get(BlockchainFeatures.DataTransaction.id).contains(currentHeight)) {
             DisableHijackedAliases.revert(rw)
