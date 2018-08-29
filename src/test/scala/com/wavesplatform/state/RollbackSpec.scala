@@ -410,5 +410,48 @@ class RollbackSpec extends FreeSpec with Matchers with WithState with Transactio
           d.blockchainUpdater.assetDescription(sponsor1.assetId).get.sponsorship shouldBe 0
         }
     }
+
+    "carry fee" in forAll(for {
+      sender      <- accountGen
+      sponsorship <- sponsorFeeCancelSponsorFeeGen(sender)
+    } yield {
+      (sender, sponsorship)
+    }) {
+      case (sender, (issue, sponsor1, sponsor2, cancel)) =>
+        def carry(fee: Long) = fee - fee / 5 * 2
+        val ts               = issue.timestamp
+
+        withDomain(createSettings(BlockchainFeatures.FeeSponsorship -> 0)) { d =>
+          d.appendBlock(genesisBlock(ts, sender, Long.MaxValue / 3))
+          println(s"gen ${d.carryFee}") ///
+//          d.carryFee shouldBe None
+
+          d.appendBlock(TestBlock.create(ts + 1, d.lastBlockId, Seq(issue)))
+          println(s"issue ${d.carryFee}") ///
+//          d.carryFee shouldBe Some(carry(issue.fee))
+          val issueBlockId = d.lastBlockId
+
+          d.appendBlock(TestBlock.create(ts + 2, d.lastBlockId, Seq(sponsor1)))
+//          d.carryFee shouldBe Some(carry(sponsor1.fee))
+          println(s"sp1 ${d.carryFee}") ///
+          val sponsorBlockId = d.lastBlockId
+
+          d.appendBlock(TestBlock.create(ts + 3, d.lastBlockId, Seq(cancel)))
+//          d.carryFee shouldBe Some(carry(cancel.fee))
+          println(s"can ${d.carryFee}") ///
+
+          d.removeAfter(sponsorBlockId)
+//          d.carryFee shouldBe Some(carry(sponsor1.fee))
+          println(s"rm can ${d.carryFee}") ///
+
+          d.removeAfter(issueBlockId)
+//          d.carryFee shouldBe Some(carry(issue.fee))
+          println(s"rm sp1 ${d.carryFee}") ///
+
+          d.appendBlock(TestBlock.create(ts + 2, d.lastBlockId, Seq(sponsor2)))
+//          d.carryFee shouldBe Some(carry(sponsor2.fee))
+          println(s"sp2 ${d.carryFee}") ///
+        }
+    }
   }
 }
