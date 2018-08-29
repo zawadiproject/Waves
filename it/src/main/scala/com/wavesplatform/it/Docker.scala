@@ -347,6 +347,42 @@ class Docker(suiteConfig: Config = empty, tag: String = "", enableProfiling: Boo
     node
   }
 
+  def killStartContainerAndMigrateMatcher(node: DockerNode): DockerNode = {
+    val id = node.containerId
+    log.info(s"Killing container with id: $id")
+    takeProfileSnapshot(node)
+    client.killContainer(id, DockerClient.Signal.SIGINT)
+    saveProfile(node)
+    saveLog(node)
+    client.startContainer(id)
+    runMatcherMigration(node)
+    node.nodeInfo = getNodeInfo(node.containerId, node.settings)
+    Await.result(
+      node.waitForStartup().flatMap(_ => connectToAll(node)),
+      3.minutes
+    )
+    node
+  }
+
+  private def runMatcherMigration(node: DockerNode): DockerNode = {
+    val id = node.containerId
+
+
+    val logFile = logDir().resolve(s"${node.name}.log").toFile
+    val cmdParams: Array[String] =
+      Array("sh", s"java -cp /opt/waves/waves.jar com.wavesplatform.matcher.MigrationTool /opt/waves/template.conf cb > /tmp/1.log")
+    val execCreatedId =
+      client
+        .execCreate(id, cmdParams)
+        .id()
+    val logs = client
+      .execStart(execCreatedId)
+    while (client.execInspect(execCreatedId).running()) {
+      Thread.sleep(1000)
+    }
+    node
+  }
+
   def restartContainer(node: DockerNode): DockerNode = {
     val id            = node.containerId
     val containerInfo = inspectContainer(id)

@@ -12,7 +12,7 @@ package object sync {
   val leasingAmount              = transferAmount
   val issueAmount                = transferAmount
   val massTransferFeePerTransfer = 0.0005.waves
-  val someAssetAmount            = 100000
+  val someAssetAmount            = 99999999999999l
   val matcherFee                 = 0.003.waves
 
   def calcDataFee(data: List[DataEntry[_]]): Long = {

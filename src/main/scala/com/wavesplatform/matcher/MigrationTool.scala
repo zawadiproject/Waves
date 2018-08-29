@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 
 object MigrationTool extends ScorexLogging {
   private def collectStats(db: DB): Unit = {
-    log.info("Collecting stats")
+    //log.info("Collecting stats")
     val iterator = db.iterator()
     iterator.seekToFirst()
 
@@ -74,7 +74,7 @@ object MigrationTool extends ScorexLogging {
   }
 
   private def recalculateReservedBalance(db: DB): Unit = {
-    log.info("Recalculating reserved balances")
+    //log.info("Recalculating reserved balances")
     val calculatedReservedBalances = new JHashMap[Address, Map[Option[AssetId], Long]]()
     val ordersToDelete             = Seq.newBuilder[ByteStr]
     val key                        = MatcherKeys.orderInfo(ByteStr(Array.emptyByteArray))
@@ -88,7 +88,7 @@ object MigrationTool extends ScorexLogging {
       if (!orderInfo.status.isFinal) {
         db.get(MatcherKeys.order(orderId)) match {
           case None =>
-            log.info(s"Missing order $orderId")
+            //log.info(s"Missing order $orderId")
             ordersToDelete += orderId
           case Some(order) =>
             calculatedReservedBalances.compute(
@@ -108,7 +108,7 @@ object MigrationTool extends ScorexLogging {
       }
     }
 
-    log.info("Collecting all addresses")
+    //log.info("Collecting all addresses")
 
     val addresses = Seq.newBuilder[Address]
     db.iterateOver(Shorts.toByteArray(5)) { e =>
@@ -117,12 +117,12 @@ object MigrationTool extends ScorexLogging {
       addresses += Address.fromBytes(addressBytes).explicitGet()
     }
 
-    log.info("Loading stored reserved balances")
+    //log.info("Loading stored reserved balances")
 
     val allReservedBalances = addresses.result().map(a => a -> DBUtils.reservedBalance(db, a)).toMap
 
     if (allReservedBalances.size != calculatedReservedBalances.size()) {
-      log.info(s"Calculated balances: ${calculatedReservedBalances.size()}, stored balances: ${allReservedBalances.size}")
+      //log.info(s"Calculated balances: ${calculatedReservedBalances.size()}, stored balances: ${allReservedBalances.size}")
     }
 
     val corrections = Seq.newBuilder[((Address, Option[AssetId]), Long)]
@@ -146,7 +146,7 @@ object MigrationTool extends ScorexLogging {
       }
     }
 
-    log.info(s"Found $discrepancyCounter discrepancies; writing reserved balances")
+    //log.info(s"Found $discrepancyCounter discrepancies; writing reserved balances")
 
     db.readWrite { rw =>
       for ((address, newAssetIds) <- assetsToAdd) {
@@ -168,7 +168,7 @@ object MigrationTool extends ScorexLogging {
   }
 
   def main(args: Array[String]): Unit = {
-    log.info(s"OK, engine start")
+    //log.info(s"OK, engine start")
 
     val userConfig = args.headOption.fold(ConfigFactory.empty())(f => ConfigFactory.parseFile(new File(f)))
     val settings   = WavesSettings.fromConfig(loadConfig(userConfig))
@@ -187,16 +187,16 @@ object MigrationTool extends ScorexLogging {
       recalculateReservedBalance(db)
     } else if (args(1) == "rb") {
       for ((assetId, balance) <- DBUtils.reservedBalance(db, Address.fromString(args(2)).explicitGet())) {
-        log.info(s"${AssetPair.assetIdStr(assetId)}: $balance")
+        //log.info(s"${AssetPair.assetIdStr(assetId)}: $balance")
       }
     } else if (args(1) == "ddd") {
-      log.warn("DELETING LEGACY ENTRIES")
+      //log.warn("DELETING LEGACY ENTRIES")
       deleteLegacyEntries(db)
-      log.info("Finished deleting legacy entries")
+      //log.info("Finished deleting legacy entries")
     } else if (args(1) == "compact") {
-      log.info("Compacting database")
+      //log.info("Compacting database")
       db.compactRange(null, null)
-      log.info("Compaction complete")
+      //log.info("Compaction complete")
     }
 
     db.close()
