@@ -124,8 +124,8 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
     }
   }
 
-  override def lastBlockFees: Option[Portfolio] = readOnly { db =>
-    db.fromHistory(Keys.blockFeeHistory, Keys.blockFee)
+  override def carryFee: Option[Portfolio] = readOnly { db =>
+    db.fromHistory(Keys.carryFeeHistory, Keys.carryFee)
       .map(fee => Portfolio(fee, LeaseBalance(0, 0), Map.empty))
   }
 
@@ -358,9 +358,9 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
     }
 
     /// don't write this w/o sponsorship
-    rw.put(Keys.blockFee(height), fees.balance) /// rollback?
+    rw.put(Keys.carryFee(height), fees.balance) /// rollback?
 //    println(s"LDBW wrote ${fees.balance}")      ///
-    expiredKeys ++= updateHistory(rw, Keys.blockFeeHistory, threshold, Keys.blockFee)
+    expiredKeys ++= updateHistory(rw, Keys.carryFeeHistory, threshold, Keys.carryFee)
 
     rw.put(Keys.transactionIdsAtHeight(height), transactions.keys.toSeq)
 

@@ -119,7 +119,7 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
         val b1 = block(acc, Seq(transfer))
         val b2 = block(acc, Seq.empty)
 
-        assertDiffAndState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
+        assertNgDiffState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
           case (diff, state) =>
             state.balance(acc, None) - ENOUGH_AMT shouldBe 0
         }
@@ -144,7 +144,7 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
         val b1 = block(acc, Seq(transfer1, transfer2))
         val b2 = block(acc, Seq.empty)
 
-        assertDiffAndState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
+        assertNgDiffState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
           case (diff, state) =>
             state.balance(acc, None) shouldBe ENOUGH_AMT
         }
@@ -169,7 +169,7 @@ class SponsorFeeTransactionSpecification extends PropSpec with PropertyChecks wi
         val b1 = block(acc, Seq(transfer1, sponsor2, transfer2))
         val b2 = block(acc, Seq.empty)
 
-        assertDiffAndState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
+        assertNgDiffState(Seq(b0, b1), b2, NgAndSponsorshipSettings) {
           case (diff, state) =>
             state.balance(acc, None) shouldBe ENOUGH_AMT
         }

@@ -16,7 +16,7 @@ trait Blockchain {
   def blockHeaderAndSize(blockId: ByteStr): Option[(BlockHeader, Int)]
 
   def lastBlock: Option[Block]
-  def lastBlockFees: Option[Portfolio]
+  def carryFee: Option[Portfolio]
   def blockBytes(height: Int): Option[Array[Byte]]
   def blockBytes(blockId: ByteStr): Option[Array[Byte]]
 

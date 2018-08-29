@@ -24,7 +24,7 @@ class BlockchainUpdaterBlockMicroblockSequencesSameTransactionsTest
   type Setup = (GenesisTransaction, TransferTransactionV1, TransferTransactionV1, TransferTransactionV1)
 
   property("resulting miner balance should not depend on tx distribution among blocks and microblocks") {
-    g(3, 2).sample.head match { ///forAll
+    forAll(g(100, 5)) {
       case (gen, rest) =>
         val finalMinerBalances = rest.map {
           case (a @ (bmb: BlockAndMicroblockSequence, last: Block)) =>
@@ -36,14 +36,9 @@ class BlockchainUpdaterBlockMicroblockSequencesSameTransactionsTest
                   mbs.foreach(mb => d.blockchainUpdater.processMicroBlock(mb).explicitGet())
               }
               d.blockchainUpdater.processBlock(last)
-              val z = d.portfolio(last.signerData.generator.toAddress).balance
-              println(s"test finalMinerBalances=$z") ///
-              z
+              d.portfolio(last.signerData.generator.toAddress).balance
             }
         }
-//        if (finalMinerBalances.toSet.size > 1) {
-//          println(rest) ///
-//        }
         finalMinerBalances.toSet.size shouldBe 1
     }
   }

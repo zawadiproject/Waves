@@ -190,7 +190,7 @@ class CompositeBlockchain(inner: Blockchain, maybeDiff: => Option[Diff]) extends
 
   override def lastBlock: Option[Block] = inner.lastBlock
 
-  override def lastBlockFees: Option[Portfolio] = inner.lastBlockFees
+  override def carryFee: Option[Portfolio] = inner.carryFee
 
   override def blockBytes(height: Int): Option[Array[Type]] = inner.blockBytes(height)
 
