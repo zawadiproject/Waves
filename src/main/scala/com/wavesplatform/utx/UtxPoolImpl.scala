@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap
 import cats._
 import com.wavesplatform.account.Address
 import com.wavesplatform.consensus.TransactionsOrdering
-import com.wavesplatform.metrics.Instrumented
+import com.wavesplatform.metrics.{Instrumented, TxProcessingStats}
 import com.wavesplatform.mining.MultiDimensionalMiningConstraint
 import com.wavesplatform.settings.{FunctionalitySettings, UtxSettings}
 import com.wavesplatform.state.diffs.TransactionDiffer
@@ -167,7 +167,7 @@ class UtxPoolImpl(time: Time, blockchain: Blockchain, feeCalculator: FeeCalculat
   private def putIfNew(b: Blockchain, tx: Transaction): Either[ValidationError, (Boolean, Diff)] = {
     putRequestStats.increment()
     measureSuccessful(
-      processingTimeStats, {
+      processingTimeStats.refine("transaction-type" -> TxProcessingStats.typeToName(tx.builder.typeId)), {
         for {
           _    <- Either.cond(transactions.size < utxSettings.maxSize, (), GenericError("Transaction pool size limit is reached"))
           _    <- checkNotBlacklisted(tx)
