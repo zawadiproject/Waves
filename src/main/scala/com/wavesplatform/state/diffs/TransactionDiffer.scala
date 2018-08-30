@@ -22,7 +22,7 @@ object TransactionDiffer extends Instrumented with ScorexLogging {
 
   def apply(settings: FunctionalitySettings, prevBlockTimestamp: Option[Long], currentBlockTimestamp: Long, currentBlockHeight: Int)(
       blockchain: Blockchain,
-      tx: Transaction): Either[ValidationError, Diff] = {
+      tx: Transaction): Either[ValidationError, Diff] = stats.fullTxValidation.measureForType(tx.builder.typeId) {
     for {
       _ <- Verifier(blockchain, currentBlockHeight)(tx)
       _ <- stats.commonValidation

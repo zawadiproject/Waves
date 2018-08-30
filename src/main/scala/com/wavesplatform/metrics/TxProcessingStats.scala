@@ -36,6 +36,7 @@ object TxProcessingStats {
     }
   }
 
+  val fullTxValidation: TxTimer          = TxTimer(Kamon.timer("tx.processing.validation"))
   val accountScriptExecution: TxTimer    = TxTimer(Kamon.timer("tx.processing.script-execution.account"))
   val assetScriptExecution: TxTimer      = TxTimer(Kamon.timer("tx.processing.script-execution.asset"))
   val signatureVerification: TxTimer     = TxTimer(Kamon.timer("tx.processing.validation.signature"))
