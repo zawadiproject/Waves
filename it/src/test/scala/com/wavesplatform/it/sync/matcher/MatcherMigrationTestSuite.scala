@@ -56,7 +56,7 @@ class MatcherMigrationTestSuite
       matcherNode.fullOrderHistory(aliceNode).head.status shouldBe "Accepted"
 
       // reboot matcher's node
-      docker.killStartContainerAndMigrateMatcher(dockerNodes().head)
+      docker.killStartContainerAndMigrateMatcher(dockerNodes().head, Configs.head)
       Thread.sleep(60.seconds.toMillis)
 
       val height = nodes.map(_.height).max

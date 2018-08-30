@@ -70,7 +70,7 @@ class Docker(suiteConfig: Config = empty, tag: String = "", enableProfiling: Boo
     override val chainId = configTemplate.as[String]("waves.blockchain.custom.address-scheme-character").charAt(0).toByte
   }
 
-  private[it] val genesisOverride = {
+  private[it] val genesisOverride: Config = {
     val genesisTs          = System.currentTimeMillis()
     val timestampOverrides = parseString(s"""waves.blockchain.custom.genesis {
          |  timestamp = $genesisTs
@@ -347,15 +347,19 @@ class Docker(suiteConfig: Config = empty, tag: String = "", enableProfiling: Boo
     node
   }
 
-  def killStartContainerAndMigrateMatcher(node: DockerNode): DockerNode = {
+  def killStartContainerAndMigrateMatcher(node: DockerNode, nodeConfig: Config): DockerNode = {
     val id = node.containerId
     log.info(s"Killing container with id: $id")
     takeProfileSnapshot(node)
+    changeStartSript(node, false)
     client.killContainer(id, DockerClient.Signal.SIGINT)
     saveProfile(node)
     saveLog(node)
     client.startContainer(id)
-    runMatcherMigration(node)
+    runMatcherMigration(node, nodeConfig)
+    changeStartSript(node, true)
+    client.killContainer(id, DockerClient.Signal.SIGINT)
+    client.startContainer(id)
     node.nodeInfo = getNodeInfo(node.containerId, node.settings)
     Await.result(
       node.waitForStartup().flatMap(_ => connectToAll(node)),
@@ -364,13 +368,34 @@ class Docker(suiteConfig: Config = empty, tag: String = "", enableProfiling: Boo
     node
   }
 
-  private def runMatcherMigration(node: DockerNode): DockerNode = {
+  private def changeStartSript(node: DockerNode, fromBackup: Boolean): Unit = {
     val id = node.containerId
-
-
-    val logFile = logDir().resolve(s"${node.name}.log").toFile
+    val fileNames = if (fromBackup) {
+      ("old-start.sh", "start-waves.sh")
+    } else {
+      ("start-waves.sh", "old-start.sh")
+    }
     val cmdParams: Array[String] =
-      Array("sh", s"java -cp /opt/waves/waves.jar com.wavesplatform.matcher.MigrationTool /opt/waves/template.conf cb > /tmp/1.log")
+      Array(
+        "sh",
+        s"""cp /opt/waves/${fileNames._1} /opt/waves/${fileNames._2} && echo "/bin/sh" > ${fileNames._1}"""
+      )
+    val execCreatedId =
+      client
+        .execCreate(id, cmdParams)
+        .id()
+    val logs = client
+      .execStart(execCreatedId)
+
+  }
+
+  private def runMatcherMigration(node: DockerNode, nodeConfigs: Config): DockerNode = {
+    val id = node.containerId
+    val cmdParams: Array[String] =
+      Array(
+        "sh",
+        s"java ${renderProperties(asProperties(genesisOverride))} -cp /opt/waves/waves.jar com.wavesplatform.matcher.MigrationTool /opt/waves/template.conf cb > /tmp/1.log"
+      )
     val execCreatedId =
       client
         .execCreate(id, cmdParams)
