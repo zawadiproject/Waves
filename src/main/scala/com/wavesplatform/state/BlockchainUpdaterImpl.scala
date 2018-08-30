@@ -156,7 +156,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
             } else
               measureSuccessful(forgeBlockTimeStats, ng.totalDiffOf(block.reference)) match {
                 case None => Left(BlockAppendError(s"References incorrect or non-existing block", block))
-                case Some((referencedForgedBlock, referencedLiquidDiff, discarded)) =>
+                case Some((referencedForgedBlock, referencedLiquidDiff, carryFee, discarded)) =>
                   if (referencedForgedBlock.signaturesValid().isRight) {
                     if (discarded.nonEmpty) {
                       microBlockForkStats.increment()
@@ -186,7 +186,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
                     }
 
                     diff.map { hardenedDiff =>
-                      blockchain.append(referencedLiquidDiff, hardenedDiff._2, referencedForgedBlock)
+                      blockchain.append(referencedLiquidDiff, carryFee, referencedForgedBlock)
                       TxsInBlockchainStats.record(ng.transactions.size)
                       Some((hardenedDiff, discarded.flatMap(_.transactionData)))
                     }
@@ -345,8 +345,8 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
 
   override def blockBytes(blockId: ByteStr): Option[Array[Byte]] =
     (for {
-      ng            <- ngState
-      (block, _, _) <- ng.totalDiffOf(blockId)
+      ng               <- ngState
+      (block, _, _, _) <- ng.totalDiffOf(blockId)
     } yield block.bytes()).orElse(blockchain.blockBytes(blockId))
 
   override def blockIdsAfter(parentSignature: ByteStr, howMany: Int): Option[Seq[ByteStr]] = {

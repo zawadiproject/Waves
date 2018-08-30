@@ -21,12 +21,10 @@ object BlockDiffer extends ScorexLogging with Instrumented {
 
   private def clearNgAndSponsorship(blockchain: Blockchain,
                                     portfolio: Portfolio,
-                                    height: Int,
-                                    fs: FunctionalitySettings): (Portfolio, Option[Portfolio]) = {
-    val ngHeight          = blockchain.featureActivationHeight(BlockchainFeatures.NG.id).getOrElse(Int.MaxValue)
-    val sponsorshipHeight = Sponsorship.sponsoredFeesSwitchHeight(blockchain, fs)
+                                    hasNg: Boolean,
+                                    hasSponsorship: Boolean): (Portfolio, Option[Portfolio]) = {
     val pf =
-      if (height >= sponsorshipHeight)
+      if (hasSponsorship)
         Portfolio.empty.copy(
           balance = portfolio.balance +
             portfolio.assets.map {
@@ -36,7 +34,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
             }.sum)
       else portfolio
 
-    if (height >= ngHeight) {
+    if (hasNg) {
       val curPf  = pf.multiply(Block.CurrentBlockFeePart)
       val nextPf = pf.minus(curPf)
       (curPf, Some(nextPf))
@@ -62,7 +60,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
       else None
 
     lazy val currentBlockFeeDistr: Option[Portfolio] =
-      if (blockchain.height < ngHeight)
+      if (stateHeight < ngHeight)
         Some(block.feesPortfolio())
       else
         None
@@ -79,7 +77,8 @@ object BlockDiffer extends ScorexLogging with Instrumented {
         currentBlockFeeDistr,
         block.timestamp,
         block.transactionData,
-        1
+        stateHeight + 1,
+        hasSponsorship = stateHeight >= sponsorshipHeight
       )
     } yield r
   }
@@ -104,7 +103,8 @@ object BlockDiffer extends ScorexLogging with Instrumented {
         None,
         timestamp,
         micro.transactionData,
-        0
+        blockchain.height,
+        hasSponsorship = false
       )
     } yield r
   }
@@ -118,15 +118,15 @@ object BlockDiffer extends ScorexLogging with Instrumented {
                                                     currentBlockFeeDistr: Option[Portfolio],
                                                     timestamp: Long,
                                                     txs: Seq[Transaction],
-                                                    heightDiff: Int): Either[ValidationError, (Diff, Option[Portfolio], Constraint)] = {
+                                                    currentBlockHeight: Int,
+                                                    hasSponsorship: Boolean): Either[ValidationError, (Diff, Option[Portfolio], Constraint)] = {
     def updateConstraint(constraint: Constraint, blockchain: Blockchain, tx: Transaction): Constraint =
       constraint.put(blockchain, tx).asInstanceOf[Constraint]
 
-    val currentBlockHeight                          = blockchain.height + heightDiff
     val txDiffer                                    = TransactionDiffer(settings, prevBlockTimestamp, timestamp, currentBlockHeight) _
     val initDiff                                    = Diff.empty.copy(portfolios = Map(blockGenerator -> currentBlockFeeDistr.orElse(prevBlockFeeDistr).orEmpty))
     val init: (Diff, Option[Portfolio], Constraint) = (initDiff, None, initConstraint)
-    val hasNG                                       = currentBlockFeeDistr.isEmpty
+    val hasNg                                       = currentBlockFeeDistr.isEmpty
 
     txs
       .foldLeft(init.asRight[ValidationError]) {
@@ -139,8 +139,8 @@ object BlockDiffer extends ScorexLogging with Instrumented {
           else
             txDiffer(updatedBlockchain, tx).map { newDiff =>
               val updatedDiff = currDiff.combine(newDiff)
-              if (hasNG) {
-                val (curPf, nextPf) = clearNgAndSponsorship(updatedBlockchain, tx.feeDiff(), currentBlockHeight, settings)
+              if (hasNg) {
+                val (curPf, nextPf) = clearNgAndSponsorship(updatedBlockchain, tx.feeDiff(), hasNg, hasSponsorship)
                 val diff            = updatedDiff.combine(Diff.empty.copy(portfolios = Map(blockGenerator -> curPf)))
                 val carry           = carryFee.flatMap(pf => nextPf.map(_.combine(pf))).orElse(nextPf)
                 (diff, carry, updatedConstraint)

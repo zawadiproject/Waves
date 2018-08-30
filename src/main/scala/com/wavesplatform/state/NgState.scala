@@ -54,8 +54,8 @@ class NgState(val base: Block, val baseBlockDiff: Diff, val carryFee: Option[Por
       base.copy(signerData = base.signerData.copy(signature = micros.head.totalResBlockSig), transactionData = transactions)
     }
 
-  def totalDiffOf(id: BlockId): Option[(Block, Diff, DiscardedMicroBlocks)] =
-    forgeBlock(id).map { case (b, txs) => (b, diffFor(id), txs) }
+  def totalDiffOf(id: BlockId): Option[(Block, Diff, Option[Portfolio], DiscardedMicroBlocks)] =
+    forgeBlock(id).map { case (b, txs) => (b, diffFor(id), carryFee, txs) }
 
   def bestLiquidDiff: Diff = micros.headOption.fold(baseBlockDiff)(m => totalDiffOf(m.totalResBlockSig).get._2)
 
