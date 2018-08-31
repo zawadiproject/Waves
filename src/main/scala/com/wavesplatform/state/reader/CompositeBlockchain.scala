@@ -12,7 +12,7 @@ import com.wavesplatform.transaction.lease.LeaseTransaction
 import com.wavesplatform.transaction.smart.script.Script
 import com.wavesplatform.transaction.{AssetId, Transaction, ValidationError}
 
-class CompositeBlockchain(inner: Blockchain, maybeDiff: => Option[Diff]) extends Blockchain {
+class CompositeBlockchain(inner: Blockchain, maybeDiff: => Option[Diff], carry: Option[Portfolio] = None) extends Blockchain {
 
   private def diff = maybeDiff.getOrElse(Diff.empty)
 
@@ -190,7 +190,10 @@ class CompositeBlockchain(inner: Blockchain, maybeDiff: => Option[Diff]) extends
 
   override def lastBlock: Option[Block] = inner.lastBlock
 
-  override def carryFee: Option[Portfolio] = inner.carryFee
+  override def carryFee: Option[Portfolio] = {
+    Console.err.println(s"<==> CompB carry=$carry inner=$inner") ///
+    carry.orElse(inner.carryFee)
+  }
 
   override def blockBytes(height: Int): Option[Array[Type]] = inner.blockBytes(height)
 
@@ -219,6 +222,6 @@ class CompositeBlockchain(inner: Blockchain, maybeDiff: => Option[Diff]) extends
 }
 
 object CompositeBlockchain {
-  def composite(inner: Blockchain, diff: => Option[Diff]): Blockchain = new CompositeBlockchain(inner, diff)
-  def composite(inner: Blockchain, diff: Diff): Blockchain            = new CompositeBlockchain(inner, Some(diff))
+  def composite(inner: Blockchain, diff: => Option[Diff]): Blockchain                          = new CompositeBlockchain(inner, diff)
+  def composite(inner: Blockchain, diff: Diff, carryFee: Option[Portfolio] = None): Blockchain = new CompositeBlockchain(inner, Some(diff), carryFee)
 }

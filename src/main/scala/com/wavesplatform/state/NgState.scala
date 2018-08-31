@@ -3,6 +3,7 @@ package com.wavesplatform.state
 import java.util.concurrent.TimeUnit
 
 import cats.kernel.Monoid
+import cats.implicits._
 import com.google.common.cache.CacheBuilder
 import com.wavesplatform.utils.ScorexLogging
 import com.wavesplatform.block.Block.BlockId
@@ -11,7 +12,9 @@ import com.wavesplatform.transaction.{DiscardedMicroBlocks, Transaction}
 
 import scala.collection.mutable.{ListBuffer => MList, Map => MMap}
 
-class NgState(val base: Block, val baseBlockDiff: Diff, val carryFee: Option[Portfolio], val approvedFeatures: Set[Short]) extends ScorexLogging {
+class NgState(val base: Block, val baseBlockDiff: Diff, private var carry: Option[Portfolio], val approvedFeatures: Set[Short])
+    extends ScorexLogging {
+  Console.err.println(s"<==> ngState $carry") ///
 
   private val MaxTotalDiffs = 3
 
@@ -55,7 +58,7 @@ class NgState(val base: Block, val baseBlockDiff: Diff, val carryFee: Option[Por
     }
 
   def totalDiffOf(id: BlockId): Option[(Block, Diff, Option[Portfolio], DiscardedMicroBlocks)] =
-    forgeBlock(id).map { case (b, txs) => (b, diffFor(id), carryFee, txs) }
+    forgeBlock(id).map { case (b, txs) => (b, diffFor(id), carry, txs) }
 
   def bestLiquidDiff: Diff = micros.headOption.fold(baseBlockDiff)(m => totalDiffOf(m.totalResBlockSig).get._2)
 
@@ -96,8 +99,12 @@ class NgState(val base: Block, val baseBlockDiff: Diff, val carryFee: Option[Por
     BlockMinerInfo(base.consensusData, base.timestamp, blockId)
   }
 
-  def append(m: MicroBlock, diff: Diff, timestamp: Long): Unit = {
+  def append(m: MicroBlock, diff: Diff, microblockCarry: Option[Portfolio], timestamp: Long): Unit = {
     microDiffs.put(m.totalResBlockSig, (diff, timestamp))
     micros.prepend(m)
+    carry = carry.combine(microblockCarry)
+    Console.err.println(s"<==> NG.append: carry $microblockCarry total $carry") ///
   }
+
+  def carryFee: Option[Portfolio] = carry
 }
