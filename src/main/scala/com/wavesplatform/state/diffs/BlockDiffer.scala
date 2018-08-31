@@ -19,28 +19,6 @@ import com.wavesplatform.transaction.{Transaction, ValidationError}
 
 object BlockDiffer extends ScorexLogging with Instrumented {
 
-  private def clearNgAndSponsorship(blockchain: Blockchain,
-                                    portfolio: Portfolio,
-                                    hasNg: Boolean,
-                                    hasSponsorship: Boolean): (Portfolio, Option[Portfolio]) = {
-    val pf =
-      if (hasSponsorship)
-        Portfolio.empty.copy(
-          balance = portfolio.balance +
-            portfolio.assets.map {
-              case (assetId, assetFee) =>
-                val baseFee = blockchain.assetDescription(assetId).get.sponsorship
-                Sponsorship.toWaves(assetFee, baseFee)
-            }.sum)
-      else portfolio
-
-    if (hasNg) {
-      val curPf  = pf.multiply(Block.CurrentBlockFeePart)
-      val nextPf = pf.minus(curPf)
-      (curPf, Some(nextPf))
-    } else (pf, None)
-  }
-
   def fromBlock[Constraint <: MiningConstraint](settings: FunctionalitySettings,
                                                 blockchain: Blockchain,
                                                 maybePrevBlock: Option[Block],
@@ -67,8 +45,6 @@ object BlockDiffer extends ScorexLogging with Instrumented {
         None
 
     Console.err.println(s"FB h=$stateHeight ng@$ngHeight sp@$sponsorshipHeight") ///
-    Console.err.println(s"FB prevFees = $prevBlockFeeDistr")                     ///
-    Console.err.println(s"FB currFees = $currentBlockFeeDistr")                  ///
 
     for {
       _ <- block.signaturesValid()
@@ -85,7 +61,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
         stateHeight + 1
       )
     } yield {
-//      Console.err.println(s"FB diff = ${r._1}") ///
+      Console.err.println(s"FB diff = ${r._1}") ///
       Console.err.println(s"FB cary = ${r._2}") ///
       r
     }
@@ -135,6 +111,28 @@ object BlockDiffer extends ScorexLogging with Instrumented {
     val hasNg                                       = currentBlockFeeDistr.isEmpty
     val hasSponsorship                              = currentBlockHeight >= Sponsorship.sponsoredFeesSwitchHeight(blockchain, settings)
 
+    def clearSponsorship(blockchain: Blockchain, portfolio: Portfolio): (Portfolio, Option[Portfolio]) = {
+      val spPf =
+        if (hasSponsorship)
+          Portfolio.empty.copy(
+            balance = portfolio.balance +
+              portfolio.assets.map {
+                case (assetId, assetFee) =>
+                  val baseFee = blockchain.assetDescription(assetId).get.sponsorship
+                  Sponsorship.toWaves(assetFee, baseFee)
+              }.sum)
+        else portfolio
+
+      val ngPf = if (hasNg) {
+        val curPf  = spPf.multiply(Block.CurrentBlockFeePart)
+        val nextPf = spPf.minus(curPf)
+        (curPf, Some(nextPf))
+      } else (spPf, None)
+      if (hasSponsorship) ngPf else ngPf.copy(_2 = None)
+    }
+
+    Console.err.println(s"A prevFees = $prevBlockFeeDistr")    ///
+    Console.err.println(s"A currFees = $currentBlockFeeDistr") ///
     txs
       .foldLeft(init.asRight[ValidationError]) {
         case (r @ Left(_), _) => r
@@ -148,7 +146,7 @@ object BlockDiffer extends ScorexLogging with Instrumented {
               val updatedDiff = currDiff.combine(newDiff)
               Console.err.println(s"A   cbh=$currentBlockHeight ng=$hasNg sp=$hasSponsorship") ///
               if (hasNg) {
-                val (curPf, nextPf) = clearNgAndSponsorship(updatedBlockchain, tx.feeDiff(), hasNg, hasSponsorship)
+                val (curPf, nextPf) = clearSponsorship(updatedBlockchain, tx.feeDiff())
                 Console.err.println(s"A      NG curr=$curPf")  ///
                 Console.err.println(s"A      NG next=$nextPf") ///
                 val diff  = updatedDiff.combine(Diff.empty.copy(portfolios = Map(blockGenerator -> curPf)))

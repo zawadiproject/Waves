@@ -191,8 +191,8 @@ class CompositeBlockchain(inner: Blockchain, maybeDiff: => Option[Diff], carry: 
   override def lastBlock: Option[Block] = inner.lastBlock
 
   override def carryFee: Option[Portfolio] = {
-    Console.err.println(s"<==> CompB carry=$carry inner=$inner") ///
-    carry.orElse(inner.carryFee)
+    Console.err.println(s"<==> CompB carry=$carry") // inner=$inner") ///
+    carry                                           //.orElse(inner.carryFee)
   }
 
   override def blockBytes(height: Int): Option[Array[Type]] = inner.blockBytes(height)

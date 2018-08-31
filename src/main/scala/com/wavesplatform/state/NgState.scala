@@ -12,9 +12,8 @@ import com.wavesplatform.transaction.{DiscardedMicroBlocks, Transaction}
 
 import scala.collection.mutable.{ListBuffer => MList, Map => MMap}
 
-class NgState(val base: Block, val baseBlockDiff: Diff, private var carry: Option[Portfolio], val approvedFeatures: Set[Short])
+class NgState(val base: Block, val baseBlockDiff: Diff, val baseBlockCarry: Option[Portfolio], val approvedFeatures: Set[Short])
     extends ScorexLogging {
-  Console.err.println(s"<==> ngState $carry") ///
 
   private val MaxTotalDiffs = 3
 
@@ -25,22 +24,25 @@ class NgState(val base: Block, val baseBlockDiff: Diff, private var carry: Optio
     .maximumSize(MaxTotalDiffs)
     .expireAfterWrite(10, TimeUnit.MINUTES)
     .build[BlockId, Diff]()
+  var carry: Option[Portfolio] = baseBlockCarry ///make this per id
 
   def microBlockIds: Seq[BlockId] = micros.map(_.totalResBlockSig).toList
 
-  private def diffFor(totalResBlockSig: BlockId): Diff =
+  private def diffFor(totalResBlockSig: BlockId): (Diff, Option[Portfolio]) =
     if (totalResBlockSig == base.uniqueId)
-      baseBlockDiff
+      (baseBlockDiff, baseBlockCarry)
     else
       Option(totalBlockDiffCache.getIfPresent(totalResBlockSig)) match {
-        case Some(d) => d
+        case Some(d) => (d, carry)
         case None =>
           val prevResBlockSig  = micros.find(_.totalResBlockSig == totalResBlockSig).get.prevResBlockSig
-          val prevResBlockDiff = Option(totalBlockDiffCache.getIfPresent(prevResBlockSig)).getOrElse(diffFor(prevResBlockSig))
+          val prevResBlockDiff = Option(totalBlockDiffCache.getIfPresent(prevResBlockSig)).getOrElse(diffFor(prevResBlockSig)._1)
           val currentMicroDiff = microDiffs(totalResBlockSig)._1
           val r                = Monoid.combine(prevResBlockDiff, currentMicroDiff)
+//          Console.err.println(s"<==> NGS diffFor prev=$prevResBlockDiff") ///
+//          Console.err.println(s"<==> NGS diffFor curr=$currentMicroDiff") ///
           totalBlockDiffCache.put(totalResBlockSig, r)
-          r
+          (r, carry)
       }
 
   def bestLiquidBlockId: BlockId =
@@ -58,7 +60,12 @@ class NgState(val base: Block, val baseBlockDiff: Diff, private var carry: Optio
     }
 
   def totalDiffOf(id: BlockId): Option[(Block, Diff, Option[Portfolio], DiscardedMicroBlocks)] =
-    forgeBlock(id).map { case (b, txs) => (b, diffFor(id), carry, txs) }
+    forgeBlock(id).map {
+      case (b, txs) =>
+        val (d, c) = diffFor(id)
+//        Console.err.println(s"<==> NGS totalDiff $d carry $c") ///
+        (b, d, c, txs)
+    }
 
   def bestLiquidDiff: Diff = micros.headOption.fold(baseBlockDiff)(m => totalDiffOf(m.totalResBlockSig).get._2)
 
@@ -103,8 +110,11 @@ class NgState(val base: Block, val baseBlockDiff: Diff, private var carry: Optio
     microDiffs.put(m.totalResBlockSig, (diff, timestamp))
     micros.prepend(m)
     carry = carry.combine(microblockCarry)
-    Console.err.println(s"<==> NG.append: carry $microblockCarry total $carry") ///
+    Console.err.println(s"<==> NGS append: diff $diff")                          ///
+    Console.err.println(s"<==> NGS append: carry $microblockCarry total $carry") ///
   }
 
   def carryFee: Option[Portfolio] = carry
+
+  Console.err.println(s"<==> NGS mdiffs=$microDiffs baseCarry=$baseBlockCarry") ///
 }

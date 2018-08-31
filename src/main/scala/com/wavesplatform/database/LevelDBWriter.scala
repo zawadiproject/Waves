@@ -125,8 +125,11 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
   }
 
   override def carryFee: Option[Portfolio] = readOnly { db =>
-    db.fromHistory(Keys.carryFeeHistory, Keys.carryFee)
+    val c = db
+      .get(Keys.carryFee(db.get(Keys.height))) ///just height?
       .map(fee => Portfolio(fee, LeaseBalance(0, 0), Map.empty))
+    Console.err.println(s"<==> LDBW read carry $c") ///
+    c
   }
 
   override def accountData(address: Address): AccountDataInfo = readOnly { db =>
@@ -198,7 +201,7 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
   }
 
   override protected def doAppend(block: Block,
-                                  carryFee: Option[Portfolio],
+                                  carry: Option[Portfolio],
                                   newAddresses: Map[Address, BigInt],
                                   wavesBalances: Map[BigInt, Long],
                                   assetBalances: Map[BigInt, Map[ByteStr, Long]],
@@ -235,6 +238,7 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
         newAddressesForWaves += addressId
       }
       rw.put(Keys.wavesBalance(addressId)(height), balance)
+      Console.err.println(s"<==> LDBW bal of $addressId @$height = $balance") ///
       expiredKeys ++= updateHistory(rw, wbh, kwbh, threshold, Keys.wavesBalance(addressId))
       addressId
     }
@@ -357,8 +361,9 @@ class LevelDBWriter(writableDB: DB, fs: FunctionalitySettings, val maxCacheSize:
       expiredKeys ++= updateHistory(rw, Keys.sponsorshipHistory(assetId), threshold, Keys.sponsorship(assetId))
     }
 
-    carryFee.foreach { carryPf =>
-      rw.put(Keys.carryFee(height), carryPf.balance)
+    Console.err.println(s"<==> LDBW writing carry $carry") ///
+    carry.foreach { c =>
+      rw.put(Keys.carryFee(height), carry.map(_.balance))
       expiredKeys ++= updateHistory(rw, Keys.carryFeeHistory, threshold, Keys.carryFee)
     }
 
