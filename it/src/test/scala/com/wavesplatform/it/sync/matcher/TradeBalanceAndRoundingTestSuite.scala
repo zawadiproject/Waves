@@ -335,7 +335,6 @@ object TradeBalanceAndRoundingTestSuite {
   private val bobSeed     = _Configs(2).getString("account-seed")
   private val alicePk     = PrivateKeyAccount.fromSeed(aliceSeed).right.get
   private val bobPk       = PrivateKeyAccount.fromSeed(bobSeed).right.get
-  private val matcherPk   = PrivateKeyAccount.fromSeed(matcherSeed).right.get
 
   val usdAssetName = "USD-X"
   val wctAssetName = "WCT-X"
