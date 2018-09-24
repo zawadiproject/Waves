@@ -114,14 +114,6 @@ object Verifier extends Instrumented with ScorexLogging {
     val sellOrder = et.sellOrder
     val buyOrder  = et.buyOrder
 
-    lazy val matcherTxVerification =
-      matcherScriptOpt
-        .map { script =>
-          stats.accountScriptExecution
-            .measureForType(typeId)(verifyTx(blockchain, script, height, et, false))
-        }
-        .getOrElse(stats.signatureVerification.measureForType(typeId)(verifyAsEllipticCurveSignature(et)))
-
     lazy val sellerOrderVerification =
       blockchain
         .accountScript(sellOrder.sender.toAddress)
@@ -135,7 +127,8 @@ object Verifier extends Instrumented with ScorexLogging {
         .getOrElse(stats.signatureVerification.measureForType(typeId)(verifyAsEllipticCurveSignature(buyOrder)))
 
     for {
-      _ <- matcherTxVerification
+      _ <- stats.signatureVerification
+        .measureForType(typeId)(verifyAsEllipticCurveSignature(et))
       _ <- sellerOrderVerification
       _ <- buyerOrderVerification
     } yield et

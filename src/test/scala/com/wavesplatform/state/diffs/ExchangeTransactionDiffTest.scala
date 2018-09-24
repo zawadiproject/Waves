@@ -275,20 +275,6 @@ class ExchangeTransactionDiffTest extends PropSpec with PropertyChecks with Matc
     }
   }
 
-  property("ExchangeTransactions invalid if matcher script fails") {
-    val failedMatcherScript = smartTradePreconditions(
-      scriptGen("Order", true),
-      scriptGen("Order", true),
-      scriptGen("ExchangeTransaction", false)
-    )
-
-    forAll(failedMatcherScript) {
-      case (genesis, transfers, issueAndScripts, exchangeTx) =>
-        val preconBlocks = Seq(TestBlock.create(Seq(genesis)), TestBlock.create(transfers), TestBlock.create(issueAndScripts))
-        assertLeft(preconBlocks, TestBlock.create(Seq(exchangeTx)), fsV2)("TransactionNotAllowedByScript")
-    }
-  }
-
   property("ExchangeTransaction invalid if order signature invalid") {
     val exchangeWithV2Tx =
       simpleTradePreconditions
