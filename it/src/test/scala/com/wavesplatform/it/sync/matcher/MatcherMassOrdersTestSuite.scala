@@ -110,6 +110,10 @@ class MatcherMassOrdersTestSuite
 
       // Alice check that order Active order is still in list
       val orderIdsAfterMatching = matcherNode.fullOrderHistory(aliceNode).map(_.id)
+      val aliceOrderIdFill = matcherNode
+        .placeOrder(aliceNode, aliceSecondWavesPair, OrderType.SELL, Order.PriceConstant, 3, 10.minutes)
+        .message
+        .id
 
       orderIdsAfterMatching should contain(aliceActiveOrderId)
       orderIdsAfterMatching should contain(alicePartialOrderId)

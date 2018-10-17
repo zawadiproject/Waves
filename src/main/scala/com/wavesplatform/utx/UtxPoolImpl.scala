@@ -135,8 +135,11 @@ class UtxPoolImpl(time: Time, blockchain: Blockchain, feeCalculator: FeeCalculat
             differ(updatedBlockchain, tx) match {
               case Right(newDiff) =>
                 (invalid, tx +: valid, Monoid.combine(diff, newDiff), updatedRest, currRest.isEmpty)
-              case Left(_) =>
+              case Left(e) =>
+                log.error(s"tx error, packUnconfirmed: ${tx.id}, error: $e")
                 (tx.id() +: invalid, valid, diff, currRest, isEmpty)
+
+
             }
           }
       }
@@ -173,7 +176,7 @@ class UtxPoolImpl(time: Time, blockchain: Blockchain, feeCalculator: FeeCalculat
 
   private def putIfNew(b: Blockchain, tx: Transaction): Either[ValidationError, (Boolean, Diff)] = {
     putRequestStats.increment()
-    measureSuccessful(
+    val r = measureSuccessful(
       processingTimeStats, {
         for {
           _    <- Either.cond(transactions.size < utxSettings.maxSize, (), GenericError("Transaction pool size limit is reached"))
@@ -191,6 +194,10 @@ class UtxPoolImpl(time: Time, blockchain: Blockchain, feeCalculator: FeeCalculat
         }
       }
     )
+    r.left.foreach { e =>
+      log.error(s"tx error, putIfNew: ${tx.id}, error: $e")
+    }
+    r
   }
 }
 
