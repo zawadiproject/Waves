@@ -2,22 +2,23 @@ package com.wavesplatform.it.sync.matcher.config
 
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory.{empty, parseString}
-import com.wavesplatform.account.PrivateKeyAccount
-import com.wavesplatform.api.http.assets.SignedIssueV1Request
+import com.wavesplatform.account.{AddressScheme, PrivateKeyAccount}
+import com.wavesplatform.api.http.assets.SignedIssueV2Request
 import com.wavesplatform.it.NodeConfigs.Default
 import com.wavesplatform.it.sync.CustomFeeTransactionSuite.defaultAssetQuantity
 import com.wavesplatform.it.sync.matcher.config.MatcherDefaultConfig._
 import com.wavesplatform.it.util._
-import com.wavesplatform.transaction.assets.IssueTransactionV1
+import com.wavesplatform.transaction.assets.IssueTransactionV2
 import com.wavesplatform.transaction.assets.exchange.AssetPair
 import com.wavesplatform.utils.Base58
 
 import scala.util.Random
 
+// TODO: Make it trait
 object MatcherPriceAssetConfig {
 
   private val _Configs: Seq[Config] = (Default.last +: Random.shuffle(Default.init).take(3))
-    .zip(Seq(matcherConfig, minerDisabled, minerDisabled, empty()))
+    .zip(Seq(matcherConfig.withFallback(minerDisabled), minerDisabled, minerDisabled, empty()))
     .map { case (n, o) => o.withFallback(n) }
 
   private val aliceSeed = _Configs(1).getString("account-seed")
@@ -31,56 +32,68 @@ object MatcherPriceAssetConfig {
   val wctAssetName = "WCT-X"
   val ethAssetName = "ETH-X"
 
-  val IssueUsdTx: IssueTransactionV1 = IssueTransactionV1
+  val IssueUsdTx: IssueTransactionV2 = IssueTransactionV2
     .selfSigned(
+      2,
+      AddressScheme.current.chainId,
       sender = alicePk,
       name = usdAssetName.getBytes(),
       description = "asset description".getBytes(),
       quantity = defaultAssetQuantity,
       decimals = Decimals,
       reissuable = false,
+      script = None,
       fee = 1.waves,
       timestamp = System.currentTimeMillis()
     )
     .right
     .get
 
-  val IssueWctTx: IssueTransactionV1 = IssueTransactionV1
+  val IssueWctTx: IssueTransactionV2 = IssueTransactionV2
     .selfSigned(
+      2,
+      AddressScheme.current.chainId,
       sender = bobPk,
       name = wctAssetName.getBytes(),
       description = "asset description".getBytes(),
       quantity = defaultAssetQuantity,
       decimals = Decimals,
       reissuable = false,
+      script = None,
       fee = 1.waves,
       timestamp = System.currentTimeMillis()
     )
     .right
     .get
 
-  val IssueEthTx: IssueTransactionV1 = IssueTransactionV1
+  val IssueEthTx: IssueTransactionV2 = IssueTransactionV2
     .selfSigned(
+      2,
+      AddressScheme.current.chainId,
       sender = alicePk,
       name = ethAssetName.getBytes(),
       description = "asset description".getBytes(),
       quantity = defaultAssetQuantity,
       decimals = 8,
       reissuable = false,
+      script = None,
       fee = 1.waves,
       timestamp = System.currentTimeMillis()
     )
     .right
     .get
 
-  val IssueBtcTx: IssueTransactionV1 = IssueTransactionV1
+  val IssueBtcTx: IssueTransactionV2 = IssueTransactionV2
     .selfSigned(
+      2,
+      AddressScheme.current.chainId,
       sender = bobPk,
       name = "BTC-X".getBytes(),
       description = "asset description".getBytes(),
       quantity = defaultAssetQuantity,
       decimals = 8,
       reissuable = false,
+      script = None,
       fee = 1.waves,
       timestamp = System.currentTimeMillis()
     )
@@ -124,18 +137,17 @@ object MatcherPriceAssetConfig {
 
   val orderLimit = 10
 
-  private val updatedMatcherConfig = parseString(s"""
-                                                    |waves.matcher {
+  private val updatedMatcherConfig = parseString(s"""waves.matcher {
                                                     |  price-assets = [ "$UsdId", "$BtcId", "WAVES" ]
-                                                    |  rest-order-limit=$orderLimit
-                                                    |}
-     """.stripMargin)
+                                                    |  rest-order-limit = $orderLimit
+                                                    |}""".stripMargin)
 
   val Configs: Seq[Config] = _Configs.map(updatedMatcherConfig.withFallback(_))
 
-  def createSignedIssueRequest(tx: IssueTransactionV1): SignedIssueV1Request = {
+  def createSignedIssueRequest(tx: IssueTransactionV2): SignedIssueV2Request = {
     import tx._
-    SignedIssueV1Request(
+    SignedIssueV2Request(
+      2,
       Base58.encode(tx.sender.publicKey),
       new String(name),
       new String(description),
@@ -144,7 +156,8 @@ object MatcherPriceAssetConfig {
       reissuable,
       fee,
       timestamp,
-      signature.base58
+      tx.proofs.base58().toList,
+      tx.script.map(_.bytes().base58)
     )
   }
 

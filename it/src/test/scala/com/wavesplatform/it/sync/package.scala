@@ -2,20 +2,24 @@ package com.wavesplatform.it
 
 import com.wavesplatform.state.DataEntry
 import com.wavesplatform.it.util._
+import com.wavesplatform.transaction.smart.script.ScriptCompiler
 
 package object sync {
+  val smartFee                   = 0.004.waves
   val minFee                     = 0.001.waves
   val leasingFee                 = 0.002.waves
-  val smartFee                   = 0.004.waves
   val issueFee                   = 1.waves
   val burnFee                    = 1.waves
   val sponsorFee                 = 1.waves
+  val setAssetScriptFee          = 1.waves
+  val setScriptFee               = 0.01.waves
   val transferAmount             = 10.waves
   val leasingAmount              = transferAmount
   val issueAmount                = transferAmount
   val massTransferFeePerTransfer = 0.0005.waves
   val someAssetAmount            = 9999999999999l
   val matcherFee                 = 0.003.waves
+  val smartMatcherFee            = 0.007.waves
 
   def calcDataFee(data: List[DataEntry[_]]): Long = {
     val dataSize = data.map(_.toBytes.length).sum + 128
@@ -29,4 +33,7 @@ package object sync {
   }
 
   val supportedVersions = List(null, "2") //sign and broadcast use default for V1
+
+  val script       = ScriptCompiler(s"""true""".stripMargin).explicitGet()._1
+  val scriptBase64 = script.bytes.value.base64
 }

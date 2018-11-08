@@ -1,52 +1,97 @@
 package com.wavesplatform.matcher.api
 
 import com.wavesplatform.account.Address
-import com.wavesplatform.database.{DBExt, RW}
-import com.wavesplatform.matcher.MatcherKeys
+import com.wavesplatform.database.{DBExt, RW, ReadOnlyDB}
 import com.wavesplatform.matcher.model.OrderInfo
+import com.wavesplatform.matcher.{ActiveOrdersIndex, FinalizedOrdersCommonIndex, FinalizedOrdersPairIndex, MatcherKeys}
 import com.wavesplatform.state.ByteStr
 import com.wavesplatform.transaction.AssetId
-import com.wavesplatform.transaction.assets.exchange.{AssetPair, Order}
+import com.wavesplatform.transaction.assets.exchange.{AssetPair, ExchangeTransaction, Order}
 import org.iq80.leveldb.DB
 
 object DBUtils {
   import OrderInfo.orderStatusOrdering
 
-  def ordersByAddressAndPair(db: DB, address: Address, pair: AssetPair, maxOrders: Int): Seq[(Order, OrderInfo)] = db.readOnly { ro =>
-    (for {
-      idx     <- (db.get(MatcherKeys.addressOrdersByPairSeqNr(address, pair)) to 0 by -1).view
-      orderId <- ro.get(MatcherKeys.addressOrdersByPair(address, pair, idx))
-      order   <- ro.get(MatcherKeys.order(orderId))
-      orderInfo = ro.get(MatcherKeys.orderInfo(orderId))
-    } yield (order, orderInfo)).take(maxOrders).sortBy { case (order, info) => (info.status, -order.timestamp) }
+  object indexes {
+    object active {
+      val MaxElements = 200
+
+      def add(rw: RW, address: Address, pair: AssetPair, id: Order.Id): Unit                  = c(address).add(rw, pair, id)
+      def delete(rw: RW, address: Address, id: Order.Id): Unit                                = c(address).delete(rw, id)
+      def size(ro: ReadOnlyDB, address: Address): Int                                         = c(address).size(ro)
+      def iterator(ro: ReadOnlyDB, address: Address): Iterator[ActiveOrdersIndex.NodeContent] = c(address).iterator(ro)
+
+      private def c(address: Address) = new ActiveOrdersIndex(address, MaxElements)
+    }
+
+    object finalized {
+      object common {
+        val MaxElements = 100
+
+        def add(rw: RW, address: Address, id: Order.Id): Unit              = add(rw, address, List(id))
+        def add(rw: RW, address: Address, ids: Seq[Order.Id]): Unit        = c(address).add(rw, ids)
+        def iterator(ro: ReadOnlyDB, address: Address): Iterator[Order.Id] = c(address).iterator(ro)
+
+        private def c(address: Address) = new FinalizedOrdersCommonIndex(address, MaxElements)
+      }
+
+      object pair {
+        val MaxElements = 100
+
+        def add(rw: RW, address: Address, pair: AssetPair, id: Order.Id): Unit              = add(rw, address, pair, List(id))
+        def add(rw: RW, address: Address, pair: AssetPair, ids: Seq[Order.Id]): Unit        = c(address, pair).add(rw, ids)
+        def iterator(ro: ReadOnlyDB, address: Address, pair: AssetPair): Iterator[Order.Id] = c(address, pair).iterator(ro)
+
+        private def c(address: Address, pair: AssetPair) = new FinalizedOrdersPairIndex(address, pair, MaxElements)
+      }
+    }
   }
+
+  def ordersByAddressAndPair(db: DB, address: Address, pair: AssetPair, activeOnly: Boolean, maxOrders: Int): IndexedSeq[(Order, OrderInfo)] =
+    db.readOnly { ro =>
+      mergeOrders(
+        ro,
+        maxOrders,
+        activeOnly,
+        activeIndex = indexes.active.iterator(ro, address).collect { case (`pair`, id) => id },
+        finalizedIndex = indexes.finalized.pair.iterator(ro, address, pair)
+      )
+    }
 
   /**
     * @param activeOnly If false - returns all active orders and the (maxOrders - allActiveOrders.size) recent of others
     */
-  def ordersByAddress(db: DB, address: Address, activeOnly: Boolean, maxOrders: Int): Seq[(Order, OrderInfo)] =
-    db.readOnly { ro =>
-      val oldestActiveIdx = db.get(MatcherKeys.addressOldestActiveOrderSeqNr(address))
-      val lastIdx         = db.get(MatcherKeys.addressOrdersSeqNr(address))
+  def ordersByAddress(db: DB, address: Address, activeOnly: Boolean, maxOrders: Int): IndexedSeq[(Order, OrderInfo)] = db.readOnly { ro =>
+    mergeOrders(
+      ro,
+      maxOrders,
+      activeOnly,
+      activeIndex = indexes.active.iterator(ro, address).map { case (_, id) => id },
+      finalizedIndex = indexes.finalized.common.iterator(ro, address)
+    )
+  }
 
-      val orders = for {
-        idx             <- (lastIdx to 1 by -1).toStream
-        orderSpendAsset <- ro.get(MatcherKeys.addressOrders(address, idx))
-        orderInfo       <- ro.get(MatcherKeys.orderInfoOpt(orderSpendAsset.orderId))
-      } yield (orderSpendAsset.orderId, orderInfo)
+  private def mergeOrders(ro: ReadOnlyDB,
+                          maxOrders: Int,
+                          activeOnly: Boolean,
+                          activeIndex: Iterator[Order.Id],
+                          finalizedIndex: => Iterator[Order.Id]): IndexedSeq[(Order, OrderInfo)] = {
+    def get(id: Order.Id): (Option[Order], Option[OrderInfo]) = (ro.get(MatcherKeys.order(id)), ro.get(MatcherKeys.orderInfoOpt(id)))
 
-      val activeNumber        = oldestActiveIdx.fold(0)(x => math.min(lastIdx - x + 1, maxOrders))
-      val (finalized, active) = orders.partition(_._2.status.isFinal)
-      val activeEager         = active.take(activeNumber).force
-      val finalizedEager      = if (activeOnly) Stream.empty else finalized.take(maxOrders - activeEager.size).force
+    // We show all active orders even they count exceeds the pair limit
+    val active = activeIndex.map(get).collect { case (Some(o), Some(oi)) => (o, oi) }.toIndexedSeq
 
-      val r = for {
-        x     <- activeEager ++ finalizedEager
-        order <- ro.get(MatcherKeys.order(x._1))
-      } yield (order, x._2)
+    val nonActive =
+      if (activeOnly) Iterator.empty
+      else
+        finalizedIndex
+          .map(get)
+          .collect { case (Some(o), Some(oi)) => (o, oi) }
+          .take(maxOrders - active.size)
+          .toVector
 
-      r.toVector.sortBy { case (order, info) => (info.status, -order.timestamp) }
-    }
+    (active ++ nonActive).sortBy { case (order, info) => (info.status, -order.timestamp) }
+  }
 
   def reservedBalance(db: DB, address: Address): Map[Option[AssetId], Long] = db.readOnly { ro =>
     (for {
@@ -61,4 +106,20 @@ object DBUtils {
 
   def orderInfo(db: DB, orderId: ByteStr): OrderInfo = db.get(MatcherKeys.orderInfo(orderId))
   def orderInfo(rw: RW, orderId: ByteStr): OrderInfo = rw.get(MatcherKeys.orderInfo(orderId))
+
+  def transactionsForOrder(db: DB, orderId: ByteStr): Seq[ExchangeTransaction] = db.readOnly { ro =>
+    for {
+      seqNr <- 1 to ro.get(MatcherKeys.orderTxIdsSeqNr(orderId))
+      txId = ro.get(MatcherKeys.orderTxId(orderId, seqNr))
+      tx <- ro.get(MatcherKeys.exchangeTransaction(txId))
+    } yield tx
+  }
+
+  def openVolume(db: DB, address: Address, assetId: Option[AssetId]): Long = db.get(MatcherKeys.openVolume(address, assetId)).getOrElse(0L)
+  def activeOrderCount(db: DB, address: Address): Int = {
+    val key = MatcherKeys.activeOrdersSize(address)
+    key.parse(db.get(key.keyBytes)).getOrElse(0)
+  }
+
+  def lastOrderTimestamp(db: DB, address: Address): Option[Long] = db.get(MatcherKeys.lastCommandTimestamp(address))
 }
