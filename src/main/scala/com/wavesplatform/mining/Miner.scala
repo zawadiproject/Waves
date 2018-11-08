@@ -1,5 +1,8 @@
 package com.wavesplatform.mining
 
+import java.text.SimpleDateFormat
+import java.util.Date
+
 import cats.data.EitherT
 import cats.implicits._
 import com.wavesplatform.consensus.{GeneratingBalanceProvider, PoSSelector}
@@ -69,6 +72,8 @@ class MinerImpl(allChannels: ChannelGroup,
     with Instrumented {
 
   import Miner._
+
+  private val formatDate = new SimpleDateFormat("HH:mm:ss.mmm")
 
   private implicit val s: SchedulerService = minerScheduler
 
@@ -304,8 +309,9 @@ class MinerImpl(allChannels: ChannelGroup,
       } yield (offset, balance)
     } match {
       case Right((offset, balance)) =>
-        log.debug(s"Next attempt for acc=$account in $offset")
-        nextBlockGenerationTimes += account.toAddress -> (System.currentTimeMillis() + offset.toMillis)
+        val nextTime = System.currentTimeMillis() + offset.toMillis
+        log.debug(s"Next attempt for acc=$account in $offset: ${formatDate.format(new Date(nextTime))}")
+        nextBlockGenerationTimes += account.toAddress -> nextTime
         generateOneBlockTask(account, balance)(offset).flatMap {
           case Right((estimators, block, totalConstraint)) =>
             BlockAppender(checkpoint, blockchainUpdater, timeService, utx, pos, settings, appenderScheduler)(block)
