@@ -1,10 +1,10 @@
 package com.wavesplatform.transaction
 
+import com.wavesplatform.transaction.ValidationError.InvalidSignature
+import com.wavesplatform.utils.{Execution, ScorexLogging}
+import io.swagger.annotations.ApiModelProperty
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
-import monix.execution.schedulers.SchedulerService
-import com.wavesplatform.transaction.ValidationError.InvalidSignature
-import io.swagger.annotations.ApiModelProperty
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -20,10 +20,10 @@ trait Signed extends Authorized {
     Coeval.evalOnce(Await.result(signaturesValidMemoized.runAsync(Signed.scheduler), Duration.Inf))
 }
 
-object Signed {
+object Signed extends ScorexLogging {
 
   type E[A] = Either[InvalidSignature, A]
-  private implicit val scheduler: SchedulerService = Scheduler.computation(name = "sig-validator")
+  private implicit val scheduler: Scheduler = Execution.scheduler(log.error("Error in sig-validator: ", _))
 
   private def validateTask[S <: Signed](s: S): Task[E[S]] =
     Task {

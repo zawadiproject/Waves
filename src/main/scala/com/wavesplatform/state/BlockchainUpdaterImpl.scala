@@ -1,6 +1,9 @@
 package com.wavesplatform.state
 
 import cats.implicits._
+import com.wavesplatform.account.{Address, Alias}
+import com.wavesplatform.block.Block.BlockId
+import com.wavesplatform.block.{Block, BlockHeader, MicroBlock}
 import com.wavesplatform.features.BlockchainFeatures
 import com.wavesplatform.features.FeatureProvider._
 import com.wavesplatform.metrics.{Instrumented, TxsInBlockchainStats}
@@ -8,19 +11,16 @@ import com.wavesplatform.mining.{MiningConstraint, MiningConstraints, MultiDimen
 import com.wavesplatform.settings.WavesSettings
 import com.wavesplatform.state.diffs.BlockDiffer
 import com.wavesplatform.state.reader.{CompositeBlockchain, LeaseDetails}
-import com.wavesplatform.utils.{ScorexLogging, Time, UnsupportedFeature, forceStopApplication}
-import kamon.Kamon
-import kamon.metric.MeasurementUnit
-import monix.reactive.Observable
-import monix.reactive.subjects.ConcurrentSubject
-import com.wavesplatform.account.{Address, Alias}
-import com.wavesplatform.block.Block.BlockId
-import com.wavesplatform.block.{Block, BlockHeader, MicroBlock}
 import com.wavesplatform.transaction.Transaction.Type
 import com.wavesplatform.transaction.ValidationError.{BlockAppendError, GenericError, MicroBlockAppendError}
 import com.wavesplatform.transaction._
 import com.wavesplatform.transaction.lease._
 import com.wavesplatform.transaction.smart.script.Script
+import com.wavesplatform.utils.{Execution, ScorexLogging, Time, UnsupportedFeature, forceStopApplication}
+import kamon.Kamon
+import kamon.metric.MeasurementUnit
+import monix.reactive.Observable
+import monix.reactive.subjects.ConcurrentSubject
 
 class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, time: Time)
     extends BlockchainUpdater
@@ -36,7 +36,7 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
   private var ngState: Option[NgState]              = Option.empty
   private var restTotalConstraint: MiningConstraint = MiningConstraints(blockchain, blockchain.height).total
 
-  private val service               = monix.execution.Scheduler.singleThread("last-block-info-publisher")
+  private val service               = Execution.scheduler(log.error("Error in blockchain-updater: ", _))
   private val internalLastBlockInfo = ConcurrentSubject.publish[LastBlockInfo](service)
 
   override def isLastBlockId(id: ByteStr): Boolean = ngState.exists(_.contains(id)) || lastBlock.exists(_.uniqueId == id)
@@ -259,7 +259,6 @@ class BlockchainUpdaterImpl(blockchain: Blockchain, settings: WavesSettings, tim
 
   def shutdown(): Unit = {
     internalLastBlockInfo.onComplete()
-    service.shutdown()
   }
 
   private def newlyApprovedFeatures = ngState.fold(Map.empty[Short, Int])(_.approvedFeatures.map(_ -> height).toMap)

@@ -18,12 +18,11 @@ import com.wavesplatform.transaction.ValidationError.{GenericError, SenderIsBlac
 import com.wavesplatform.transaction._
 import com.wavesplatform.transaction.assets.ReissueTransaction
 import com.wavesplatform.transaction.transfer._
-import com.wavesplatform.utils.{ScorexLogging, Time}
+import com.wavesplatform.utils.{Execution, ScorexLogging, Time}
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
 import monix.eval.Task
 import monix.execution.{CancelableFuture, Scheduler}
-import monix.execution.schedulers.SchedulerService
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.DurationLong
@@ -38,7 +37,7 @@ class UtxPoolImpl(time: Time, blockchain: Blockchain, fs: FunctionalitySettings,
 
   import com.wavesplatform.utx.UtxPoolImpl._
 
-  private implicit val scheduler: SchedulerService = Scheduler.singleThread("utx-pool-cleanup")
+  private implicit val scheduler: Scheduler = Execution.scheduler(log.error("Error in utx-pool", _))
 
   private val transactions          = new ConcurrentHashMap[ByteStr, Transaction]()
   private val pessimisticPortfolios = new PessimisticPortfolios
@@ -52,7 +51,6 @@ class UtxPoolImpl(time: Time, blockchain: Blockchain, fs: FunctionalitySettings,
 
   override def close(): Unit = {
     cleanup.cancel()
-    scheduler.shutdown()
   }
 
   private val utxPoolSizeStats    = Kamon.rangeSampler("utx-pool-size", MeasurementUnit.none, Duration.of(500, ChronoUnit.MILLIS))

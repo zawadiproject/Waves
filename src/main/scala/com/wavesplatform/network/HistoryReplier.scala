@@ -9,13 +9,13 @@ import com.wavesplatform.utils.ScorexLogging
 import io.netty.channel.ChannelHandler.Sharable
 import io.netty.channel.{ChannelHandlerContext, ChannelInboundHandlerAdapter}
 import monix.eval.Task
-import monix.execution.schedulers.SchedulerService
+import monix.execution.Scheduler
 
 @Sharable
-class HistoryReplier(ng: NG, settings: SynchronizationSettings, scheduler: SchedulerService) extends ChannelInboundHandlerAdapter with ScorexLogging {
+class HistoryReplier(ng: NG, settings: SynchronizationSettings, scheduler: Scheduler) extends ChannelInboundHandlerAdapter with ScorexLogging {
   private lazy val historyReplierSettings = settings.historyReplierSettings
 
-  private implicit val s: SchedulerService = scheduler
+  private implicit val s: Scheduler = scheduler
 
   private val knownMicroBlocks = CacheBuilder
     .newBuilder()

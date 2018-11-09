@@ -5,18 +5,20 @@ import java.util.concurrent.TimeUnit
 import com.google.common.cache.CacheBuilder
 import com.wavesplatform.settings.SynchronizationSettings.UtxSynchronizerSettings
 import com.wavesplatform.state.ByteStr
+import com.wavesplatform.transaction.Transaction
+import com.wavesplatform.utils.{Execution, ScorexLogging}
 import com.wavesplatform.utx.UtxPool
 import io.netty.channel.Channel
 import io.netty.channel.group.{ChannelGroup, ChannelMatcher}
 import monix.execution.{CancelableFuture, Scheduler}
-import com.wavesplatform.transaction.Transaction
 
-object UtxPoolSynchronizer {
+object UtxPoolSynchronizer extends ScorexLogging {
   def start(utx: UtxPool,
             settings: UtxSynchronizerSettings,
             allChannels: ChannelGroup,
             txSource: ChannelObservable[Transaction]): CancelableFuture[Unit] = {
-    implicit val scheduler: Scheduler = Scheduler.singleThread("utx-pool-sync")
+
+    implicit val scheduler: Scheduler = Execution.scheduler(log.error("Error in utx-pool-synchronizer: ", _))
 
     val dummy = new Object()
     val knownTransactions = CacheBuilder

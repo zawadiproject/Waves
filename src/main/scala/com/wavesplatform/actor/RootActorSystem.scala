@@ -2,7 +2,7 @@ package com.wavesplatform.actor
 
 import akka.actor.{ActorSystem, AllForOneStrategy, SupervisorStrategy, SupervisorStrategyConfigurator}
 import com.typesafe.config.Config
-import com.wavesplatform.utils.ScorexLogging
+import com.wavesplatform.utils.{Execution, ScorexLogging}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -20,7 +20,7 @@ object RootActorSystem extends ScorexLogging {
   }
 
   def start(id: String, config: Config)(init: ActorSystem => Unit): Unit = {
-    val system = ActorSystem(id, config)
+    val system = ActorSystem(id, Some(config), None, Some(Execution.globalEC))
     try {
       init(system)
     } catch {

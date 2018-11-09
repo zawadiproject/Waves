@@ -3,6 +3,7 @@ package com.wavesplatform.http
 import com.wavesplatform.api.http.ApiError
 import com.wavesplatform.network._
 import com.wavesplatform.transaction.{Transaction, ValidationError}
+import com.wavesplatform.utils.Execution
 import com.wavesplatform.utx.UtxPool
 import io.netty.channel.group.ChannelGroup
 
@@ -13,7 +14,7 @@ trait BroadcastRoute {
 
   def allChannels: ChannelGroup
 
-  import scala.concurrent.ExecutionContext.Implicits.global
+  implicit val scheduler = Execution.globalEC
 
   protected def doBroadcast(v: Either[ValidationError, Transaction]): Future[Either[ApiError, Transaction]] = Future {
     val r = for {

@@ -2,6 +2,10 @@ package com.wavesplatform.mining
 
 import cats.data.EitherT
 import cats.implicits._
+import com.wavesplatform.account.{Address, PrivateKeyAccount, PublicKeyAccount}
+import com.wavesplatform.block.Block._
+import com.wavesplatform.block.{Block, MicroBlock}
+import com.wavesplatform.consensus.nxt.NxtLikeConsensusBlockData
 import com.wavesplatform.consensus.{GeneratingBalanceProvider, PoSSelector}
 import com.wavesplatform.features.BlockchainFeatures
 import com.wavesplatform.features.FeatureProvider._
@@ -10,20 +14,16 @@ import com.wavesplatform.network._
 import com.wavesplatform.settings.{FunctionalitySettings, WavesSettings}
 import com.wavesplatform.state._
 import com.wavesplatform.state.appender.{BlockAppender, MicroblockAppender}
+import com.wavesplatform.transaction._
+import com.wavesplatform.utils.{ScorexLogging, Time}
 import com.wavesplatform.utx.UtxPool
+import com.wavesplatform.wallet.Wallet
 import io.netty.channel.group.ChannelGroup
 import kamon.Kamon
 import kamon.metric.MeasurementUnit
 import monix.eval.Task
+import monix.execution.Scheduler
 import monix.execution.cancelables.{CompositeCancelable, SerialCancelable}
-import monix.execution.schedulers.SchedulerService
-import com.wavesplatform.account.{Address, PrivateKeyAccount, PublicKeyAccount}
-import com.wavesplatform.block.Block._
-import com.wavesplatform.block.{Block, MicroBlock}
-import com.wavesplatform.consensus.nxt.NxtLikeConsensusBlockData
-import com.wavesplatform.utils.{ScorexLogging, Time}
-import com.wavesplatform.transaction._
-import com.wavesplatform.wallet.Wallet
 
 import scala.collection.mutable.{Map => MMap}
 import scala.concurrent.Await
@@ -61,8 +61,8 @@ class MinerImpl(allChannels: ChannelGroup,
                 utx: UtxPool,
                 wallet: Wallet,
                 pos: PoSSelector,
-                val minerScheduler: SchedulerService,
-                val appenderScheduler: SchedulerService)
+                val minerScheduler: Scheduler,
+                val appenderScheduler: Scheduler)
     extends Miner
     with MinerDebugInfo
     with ScorexLogging
@@ -70,7 +70,7 @@ class MinerImpl(allChannels: ChannelGroup,
 
   import Miner._
 
-  private implicit val s: SchedulerService = minerScheduler
+  private implicit val s: Scheduler = minerScheduler
 
   private lazy val minerSettings              = settings.minerSettings
   private lazy val minMicroBlockDurationMills = minerSettings.minMicroBlockAge.toMillis

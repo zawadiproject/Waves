@@ -1,20 +1,19 @@
 package com.wavesplatform.network
 
+import com.wavesplatform.block.Block
+import com.wavesplatform.block.Block.BlockId
 import com.wavesplatform.network.RxExtensionLoader.ApplierState.Buffer
 import com.wavesplatform.network.RxExtensionLoader.LoaderState.WithPeer
 import com.wavesplatform.network.RxScoreObserver.{ChannelClosedAndSyncWith, SyncWith}
 import com.wavesplatform.state.ByteStr
+import com.wavesplatform.transaction.ValidationError
+import com.wavesplatform.transaction.ValidationError.GenericError
 import com.wavesplatform.utils.ScorexLogging
 import io.netty.channel._
 import monix.eval.{Coeval, Task}
-import monix.execution.CancelableFuture
-import monix.execution.schedulers.SchedulerService
+import monix.execution.{CancelableFuture, Scheduler}
 import monix.reactive.subjects.{ConcurrentSubject, Subject}
 import monix.reactive.{Observable, Observer}
-import com.wavesplatform.block.Block
-import com.wavesplatform.block.Block.BlockId
-import com.wavesplatform.transaction.ValidationError
-import com.wavesplatform.transaction.ValidationError.GenericError
 
 import scala.concurrent.duration._
 
@@ -29,11 +28,11 @@ object RxExtensionLoader extends ScorexLogging {
             blocks: Observable[(Channel, Block)],
             signatures: Observable[(Channel, Signatures)],
             syncWithChannelClosed: Observable[ChannelClosedAndSyncWith],
-            scheduler: SchedulerService,
+            scheduler: Scheduler,
             timeoutSubject: Subject[Channel, Channel])(extensionApplier: (Channel, ExtensionBlocks) => Task[ApplyExtensionResult])
     : (Observable[(Channel, Block)], Coeval[State], RxExtensionLoaderShutdownHook) = {
 
-    implicit val schdlr: SchedulerService = scheduler
+    implicit val schdlr: Scheduler = scheduler
 
     val extensions: ConcurrentSubject[(Channel, ExtensionBlocks), (Channel, ExtensionBlocks)] = ConcurrentSubject.publish[(Channel, ExtensionBlocks)]
     val simpleBlocks: ConcurrentSubject[(Channel, Block), (Channel, Block)]                   = ConcurrentSubject.publish[(Channel, Block)]

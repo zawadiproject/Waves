@@ -3,16 +3,15 @@ package com.wavesplatform.network
 import java.util.concurrent.TimeUnit
 
 import com.google.common.cache.{Cache, CacheBuilder}
+import com.wavesplatform.block.Block.BlockId
+import com.wavesplatform.block.MicroBlock
 import com.wavesplatform.metrics.BlockStats
 import com.wavesplatform.settings.SynchronizationSettings.MicroblockSynchronizerSettings
 import com.wavesplatform.state.ByteStr
 import io.netty.channel._
 import monix.eval.{Coeval, Task}
-import monix.execution.CancelableFuture
-import monix.execution.schedulers.SchedulerService
+import monix.execution.{CancelableFuture, Scheduler}
 import monix.reactive.Observable
-import com.wavesplatform.block.Block.BlockId
-import com.wavesplatform.block.MicroBlock
 
 import scala.collection.mutable.{Set => MSet}
 import scala.concurrent.duration.FiniteDuration
@@ -24,9 +23,9 @@ object MicroBlockSynchronizer {
             lastBlockIdEvents: Observable[ByteStr],
             microblockInvs: ChannelObservable[MicroBlockInv],
             microblockResponses: ChannelObservable[MicroBlockResponse],
-            scheduler: SchedulerService): (Observable[(Channel, MicroblockData)], Coeval[CacheSizes]) = {
+            scheduler: Scheduler): (Observable[(Channel, MicroblockData)], Coeval[CacheSizes]) = {
 
-    implicit val schdlr: SchedulerService = scheduler
+    implicit val schdlr: Scheduler = scheduler
 
     val microBlockOwners     = cache[MicroBlockSignature, MSet[Channel]](settings.invCacheTimeout)
     val nextInvs             = cache[MicroBlockSignature, MicroBlockInv](settings.invCacheTimeout)

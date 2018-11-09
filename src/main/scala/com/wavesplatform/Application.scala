@@ -29,7 +29,7 @@ import com.wavesplatform.network.RxExtensionLoader.RxExtensionLoaderShutdownHook
 import com.wavesplatform.network._
 import com.wavesplatform.settings._
 import com.wavesplatform.state.appender.{BlockAppender, CheckpointAppender, ExtensionAppender, MicroblockAppender}
-import com.wavesplatform.utils.{NTP, ScorexLogging, SystemInformationReporter, Time, forceStopApplication}
+import com.wavesplatform.utils.{Execution, NTP, ScorexLogging, SystemInformationReporter, Time, forceStopApplication}
 import com.wavesplatform.utx.{MatcherUtxPool, UtxPool, UtxPoolImpl}
 import com.wavesplatform.wallet.Wallet
 import io.netty.channel.Channel
@@ -39,8 +39,6 @@ import kamon.Kamon
 import kamon.influxdb.CustomInfluxDBReporter
 import kamon.system.SystemMetrics
 import monix.eval.{Coeval, Task}
-import monix.execution.Scheduler._
-import monix.execution.schedulers.SchedulerService
 import monix.reactive.Observable
 import monix.reactive.subjects.ConcurrentSubject
 import org.influxdb.dto.Point
@@ -72,12 +70,12 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
   }
   private val peerDatabase = new PeerDatabaseImpl(settings.networkSettings)
 
-  private val extensionLoaderScheduler        = singleThread("rx-extension-loader", reporter = log.error("Error in Extension Loader", _))
-  private val microblockSynchronizerScheduler = singleThread("microblock-synchronizer", reporter = log.error("Error in Microblock Synchronizer", _))
-  private val scoreObserverScheduler          = singleThread("rx-score-observer", reporter = log.error("Error in Score Observer", _))
-  private val appenderScheduler               = singleThread("appender", reporter = log.error("Error in Appender", _))
-  private val historyRepliesScheduler         = fixedPool("history-replier", poolSize = 2, reporter = log.error("Error in History Replier", _))
-  private val minerScheduler                  = fixedPool("miner-pool", poolSize = 2, reporter = log.error("Error in Miner", _))
+  private val extensionLoaderScheduler        = Execution.scheduler(log.error("Error in Extension Loader", _))
+  private val microblockSynchronizerScheduler = Execution.scheduler(log.error("Error in Microblock Synchronizer", _))
+  private val scoreObserverScheduler          = Execution.scheduler(log.error("Error in Score Observer", _))
+  private val appenderScheduler               = Execution.scheduler(log.error("Error in Appender", _))
+  private val historyRepliesScheduler         = Execution.scheduler(log.error("Error in History Replier", _))
+  private val minerScheduler                  = Execution.scheduler(log.error("Error in Miner", _))
 
   private var matcher: Option[Matcher]                                         = None
   private var rxExtensionLoaderShutdown: Option[RxExtensionLoaderShutdownHook] = None
@@ -298,7 +296,7 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
 
       utx.close()
 
-      shutdownAndWait(historyRepliesScheduler, "HistoryReplier", 5.minutes)
+//      shutdownAndWait(historyRepliesScheduler, "HistoryReplier", 5.minutes)
 
       log.info("Closing REST API")
       if (settings.restAPISettings.enable) {
@@ -322,27 +320,11 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
       log.info("Stopping network services")
       network.shutdown()
 
-      shutdownAndWait(minerScheduler, "Miner")
-      shutdownAndWait(microblockSynchronizerScheduler, "MicroblockSynchronizer")
-      shutdownAndWait(scoreObserverScheduler, "ScoreObserver")
-      shutdownAndWait(extensionLoaderScheduler, "ExtensionLoader")
-      shutdownAndWait(appenderScheduler, "Appender", 5.minutes)
-
       log.info("Closing storage")
       db.close()
 
       log.info("Shutdown complete")
     }
-  }
-
-  private def shutdownAndWait(scheduler: SchedulerService, name: String, timeout: FiniteDuration = 1.minute): Unit = {
-    log.debug(s"Shutting down $name")
-    scheduler.shutdown()
-    val r = Await.result(scheduler.awaitTermination(timeout, global), 2 * timeout)
-    if (r)
-      log.info(s"$name was shutdown successfully")
-    else
-      log.warn(s"Failed to shutdown $name properly during timeout")
   }
 
 }
