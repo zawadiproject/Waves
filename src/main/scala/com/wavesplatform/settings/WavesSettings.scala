@@ -19,7 +19,8 @@ case class WavesSettings(directory: String,
                          synchronizationSettings: SynchronizationSettings,
                          utxSettings: UtxSettings,
                          featuresSettings: FeaturesSettings,
-                         metrics: Metrics.Settings)
+                         metrics: Metrics.Settings,
+                         threadSettings: ThreadSettings)
 
 object WavesSettings {
 
@@ -42,6 +43,7 @@ object WavesSettings {
     val utxSettings             = config.as[UtxSettings]("waves.utx")
     val featuresSettings        = config.as[FeaturesSettings]("waves.features")
     val metrics                 = config.as[Metrics.Settings]("metrics")
+    val threads                 = ThreadSettings.fromConfig(config)
 
     WavesSettings(
       directory,
@@ -57,7 +59,8 @@ object WavesSettings {
       synchronizationSettings,
       utxSettings,
       featuresSettings,
-      metrics
+      metrics,
+      threads
     )
   }
 }

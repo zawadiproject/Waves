@@ -29,6 +29,7 @@ import com.wavesplatform.network.RxExtensionLoader.RxExtensionLoaderShutdownHook
 import com.wavesplatform.network._
 import com.wavesplatform.settings._
 import com.wavesplatform.state.appender.{BlockAppender, CheckpointAppender, ExtensionAppender, MicroblockAppender}
+import com.wavesplatform.transaction.Signed
 import com.wavesplatform.utils.{NTP, ScorexLogging, SystemInformationReporter, Time, forceStopApplication}
 import com.wavesplatform.utx.{MatcherUtxPool, UtxPool, UtxPoolImpl}
 import com.wavesplatform.wallet.Wallet
@@ -435,6 +436,8 @@ object Application extends ScorexLogging {
       AddressScheme.current = new AddressScheme {
         override val chainId: Byte = settings.blockchainSettings.addressSchemeCharacter.toByte
       }
+
+      Signed.SigVerifyPoolSize = settings.threadSettings.sigVerify
 
       log.info(s"${Constants.AgentName} Blockchain Id: ${settings.blockchainSettings.addressSchemeCharacter}")
 

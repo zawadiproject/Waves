@@ -48,8 +48,8 @@ object NetworkServer extends ScorexLogging {
             peerInfo: ConcurrentHashMap[Channel, PeerInfo]): NS = {
     @volatile var shutdownInitiated = false
 
-    val bossGroup   = new NioEventLoopGroup(0, new DefaultThreadFactory("nio-boss-group", true))
-    val workerGroup = new NioEventLoopGroup(0, new DefaultThreadFactory("nio-worker-group", true))
+    val bossGroup   = new NioEventLoopGroup(settings.threadSettings.nettyBoss, new DefaultThreadFactory("nio-boss-group", true))
+    val workerGroup = new NioEventLoopGroup(settings.threadSettings.nettyWorker, new DefaultThreadFactory("nio-worker-group", true))
     val handshake = Handshake(
       Constants.ApplicationName + settings.blockchainSettings.addressSchemeCharacter,
       Version.VersionTuple,
