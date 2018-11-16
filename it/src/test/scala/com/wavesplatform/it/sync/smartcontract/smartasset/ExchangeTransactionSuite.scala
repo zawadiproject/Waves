@@ -2,7 +2,7 @@ package com.wavesplatform.it.sync.smartcontract.smartasset
 
 import com.wavesplatform.it.api.SyncHttpApi._
 import com.wavesplatform.it.sync._
-import com.wavesplatform.it.sync.smartcontract.{cryptoContext, pureContext, wavesContext}
+import com.wavesplatform.it.sync.smartcontract.{cryptoContextScript, pureContextScript, wavesContextScript}
 import com.wavesplatform.it.transactions.BaseTransactionSuite
 import com.wavesplatform.it.util._
 import com.wavesplatform.matcher.model.LimitOrder
@@ -76,6 +76,9 @@ class ExchangeTransactionSuite extends BaseTransactionSuite with CancelAfterFail
 
     assertBadRequestAndMessage(sender.signedBroadcast(exchangeTx(smartPair)).id, errNotAllowedByToken)
 
+    setContract(None, acc0)
+    setContract(None, acc1)
+    setContract(None, acc2)
   }
 
   test("AssetPair from smart assets") {
@@ -140,9 +143,9 @@ class ExchangeTransactionSuite extends BaseTransactionSuite with CancelAfterFail
   }
 
   test("use all functions from RIDE for asset script") {
-    val script1 = Some(ScriptCompiler(cryptoContext(dtx).get).explicitGet()._1.bytes.value.base64)
-    val script2 = Some(ScriptCompiler(pureContext(dtx).get).explicitGet()._1.bytes.value.base64)
-    val script3 = Some(ScriptCompiler(wavesContext(dtx).get).explicitGet()._1.bytes.value.base64)
+    val script1 = Some(ScriptCompiler(cryptoContextScript).explicitGet()._1.bytes.value.base64)
+    val script2 = Some(ScriptCompiler(pureContextScript(dtx)).explicitGet()._1.bytes.value.base64)
+    val script3 = Some(ScriptCompiler(wavesContextScript(dtx)).explicitGet()._1.bytes.value.base64)
 
     for (script <- List(script1, script2, script3)) {
       val asset = sender

@@ -4,7 +4,7 @@ import com.typesafe.config.Config
 import com.wavesplatform.it.api.SyncHttpApi._
 import com.wavesplatform.it.api.SyncMatcherHttpApi._
 import com.wavesplatform.it.matcher.MatcherSuiteBase
-import com.wavesplatform.it.sync.matcherFee
+import com.wavesplatform.it.sync.minMatcherFee
 import com.wavesplatform.transaction.assets.exchange.OrderType.BUY
 import com.wavesplatform.transaction.assets.exchange.{Order, OrderType}
 import scala.concurrent.duration._
@@ -34,8 +34,8 @@ class SeveralPartialOrdersTestSuite extends MatcherSuiteBase {
       val bobOrder   = matcherNode.prepareOrder(bobAcc, wavesUsdPair, OrderType.SELL, sellOrderAmount, price)
       val bobOrderId = matcherNode.placeOrder(bobOrder).message.id
       matcherNode.waitOrderStatus(wavesUsdPair, bobOrderId, "Accepted", 1.minute)
-      matcherNode.reservedBalance(bobAcc)("WAVES") shouldBe sellOrderAmount + matcherFee
-      matcherNode.tradableBalance(bobAcc, wavesUsdPair)("WAVES") shouldBe bobWavesBalanceBefore - (sellOrderAmount + matcherFee)
+      matcherNode.reservedBalance(bobAcc)("WAVES") shouldBe sellOrderAmount + minMatcherFee
+      matcherNode.tradableBalance(bobAcc, wavesUsdPair)("WAVES") shouldBe bobWavesBalanceBefore - (sellOrderAmount + minMatcherFee)
 
       val aliceOrder   = matcherNode.prepareOrder(aliceAcc, wavesUsdPair, OrderType.BUY, buyOrderAmount, price)
       val aliceOrderId = matcherNode.placeOrder(aliceOrder).message.id

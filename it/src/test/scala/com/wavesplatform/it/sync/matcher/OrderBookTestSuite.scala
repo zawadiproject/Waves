@@ -38,21 +38,21 @@ class OrderBookTestSuite extends MatcherSuiteBase {
   val (amount, price) = (1000L, PriceConstant)
 
   "When delete order book" - {
-    val buyOrder        = matcherNode.placeOrder(aliceAcc, wctUsdPair, BUY, 2 * amount, price, matcherFee).message.id
-    val anotherBuyOrder = matcherNode.placeOrder(aliceAcc, wctUsdPair, BUY, amount, price, matcherFee).message.id
+    val buyOrder        = matcherNode.placeOrder(aliceAcc, wctUsdPair, BUY, 2 * amount, price, minMatcherFee).message.id
+    val anotherBuyOrder = matcherNode.placeOrder(aliceAcc, wctUsdPair, BUY, amount, price, minMatcherFee).message.id
 
-    val submitted = matcherNode.placeOrder(bobAcc, wctUsdPair, SELL, amount, price, matcherFee).message.id
+    val submitted = matcherNode.placeOrder(bobAcc, wctUsdPair, SELL, amount, price, minMatcherFee).message.id
 
-    val sellOrder = matcherNode.placeOrder(bobAcc, wctUsdPair, SELL, amount, 2 * price, matcherFee).message.id
+    val sellOrder = matcherNode.placeOrder(bobAcc, wctUsdPair, SELL, amount, 2 * price, minMatcherFee).message.id
 
     matcherNode.waitOrderStatus(wctUsdPair, buyOrder, "PartiallyFilled")
     matcherNode.waitOrderStatus(wctUsdPair, submitted, "Filled")
 
     val (aliceRBForOnePair, bobRBForOnePair) = (reservedBalancesOf(aliceAcc), reservedBalancesOf(bobAcc))
 
-    val buyOrderForAnotherPair = matcherNode.placeOrder(aliceAcc, wctWavesPair, BUY, amount, price, matcherFee).message.id
+    val buyOrderForAnotherPair = matcherNode.placeOrder(aliceAcc, wctWavesPair, BUY, amount, price, minMatcherFee).message.id
     val sellOrderForAnotherPair =
-      matcherNode.placeOrder(bobAcc, wctWavesPair, SELL, amount, 2 * price, matcherFee).message.id
+      matcherNode.placeOrder(bobAcc, wctWavesPair, SELL, amount, 2 * price, minMatcherFee).message.id
 
     matcherNode.waitOrderStatus(wctWavesPair, buyOrderForAnotherPair, "Accepted")
     matcherNode.waitOrderStatus(wctWavesPair, sellOrderForAnotherPair, "Accepted")

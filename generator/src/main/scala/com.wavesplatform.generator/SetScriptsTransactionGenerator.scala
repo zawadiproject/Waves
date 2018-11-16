@@ -41,7 +41,7 @@ class SetScriptsTransactionGenerator(settings: SetScriptsTransactionGenerator.Se
 
 object SetScriptsTransactionGenerator {
   final case class Settings(scripts: Int, transfers: Int, complexity: Boolean) {
-    require(scripts > 0)
+    require(scripts >= 0)
     require(transfers >= 0)
   }
 

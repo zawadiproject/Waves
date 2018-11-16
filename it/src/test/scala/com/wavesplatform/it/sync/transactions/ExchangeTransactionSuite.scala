@@ -47,8 +47,8 @@ class ExchangeTransactionSuite extends BaseTransactionSuite {
       val buyAmount           = 1
       val sellAmount          = 1
       val assetPair           = AssetPair.createAssetPair("WAVES", assetId).get
-      val buy                 = Order.buy(buyer, matcher, assetPair, buyAmount, buyPrice, time, expirationTimestamp, matcherFee, o1ver)
-      val sell                = Order.sell(seller, matcher, assetPair, sellAmount, sellPrice, time, expirationTimestamp, matcherFee, o2ver)
+      val buy                 = Order.buy(buyer, matcher, assetPair, buyAmount, buyPrice, time, expirationTimestamp, minMatcherFee, o1ver)
+      val sell                = Order.sell(seller, matcher, assetPair, sellAmount, sellPrice, time, expirationTimestamp, minMatcherFee, o2ver)
 
       val amount = 1
       if (tver != 1) {
@@ -59,9 +59,9 @@ class ExchangeTransactionSuite extends BaseTransactionSuite {
             sellOrder = sell,
             amount = amount,
             price = sellPrice,
-            buyMatcherFee = (BigInt(matcherFee) * amount / buy.amount).toLong,
-            sellMatcherFee = (BigInt(matcherFee) * amount / sell.amount).toLong,
-            fee = matcherFee,
+            buyMatcherFee = (BigInt(minMatcherFee) * amount / buy.amount).toLong,
+            sellMatcherFee = (BigInt(minMatcherFee) * amount / sell.amount).toLong,
+            fee = minMatcherFee,
             timestamp = NTP.correctedTime()
           )
           .right
@@ -79,9 +79,9 @@ class ExchangeTransactionSuite extends BaseTransactionSuite {
             sellOrder = sell.asInstanceOf[OrderV1],
             amount = amount,
             price = sellPrice,
-            buyMatcherFee = (BigInt(matcherFee) * amount / buy.amount).toLong,
-            sellMatcherFee = (BigInt(matcherFee) * amount / sell.amount).toLong,
-            fee = matcherFee,
+            buyMatcherFee = (BigInt(minMatcherFee) * amount / buy.amount).toLong,
+            sellMatcherFee = (BigInt(minMatcherFee) * amount / sell.amount).toLong,
+            fee = minMatcherFee,
             timestamp = NTP.correctedTime()
           )
           .right

@@ -6,7 +6,7 @@ import com.wavesplatform.it.api.SyncMatcherHttpApi._
 import com.wavesplatform.it.matcher.MatcherSuiteBase
 import com.wavesplatform.it.sync.matcher.config.MatcherDefaultConfig
 import com.wavesplatform.it.sync.matcher.config.MatcherPriceAssetConfig.createSignedIssueRequest
-import com.wavesplatform.it.sync.matcherFee
+import com.wavesplatform.it.sync.minMatcherFee
 import com.wavesplatform.it.util._
 import com.wavesplatform.lang.v1.compiler.Terms
 import com.wavesplatform.state.EitherExt2

@@ -95,7 +95,7 @@ class TradersTestSuite extends MatcherSuiteBase {
           val newestOrderId = bobPlacesAssetOrder(1000, twoAssetsPair, bobNewAsset)
 
           // TransactionFee for leasing, matcherFee for one order
-          val leaseAmount = bobBalance - exTxFee - matcherFee
+          val leaseAmount = bobBalance - exTxFee - minMatcherFee
           val leaseId     = bobNode.lease(bobAcc.address, aliceAcc.address, leaseAmount, exTxFee, 2).id
           matcherNode.waitForTransaction(leaseId)
 
@@ -120,7 +120,7 @@ class TradersTestSuite extends MatcherSuiteBase {
           val newestOrderId = bobPlacesAssetOrder(1000, twoAssetsPair, bobNewAsset)
 
           // TransactionFee for leasing, matcherFee for one order
-          val transferAmount = bobBalance - exTxFee - matcherFee
+          val transferAmount = bobBalance - exTxFee - minMatcherFee
           val transferId     = bobNode.transfer(bobAcc.address, aliceAcc.address, transferAmount, exTxFee, None, None, 2).id
           matcherNode.waitForTransaction(transferId)
 
@@ -149,7 +149,7 @@ class TradersTestSuite extends MatcherSuiteBase {
           val newestOrderId = bobPlacesWaveOrder(bobWavesPair, 1, 10.waves * Order.PriceConstant)
 
           //      waitForOrderStatus(matcherNode, bobAssetIdRaw, id, "Accepted")
-          val leaseAmount = bobBalance - exTxFee - 10.waves - matcherFee
+          val leaseAmount = bobBalance - exTxFee - 10.waves - minMatcherFee
           val leaseId     = bobNode.lease(bobAcc.address, aliceAcc.address, leaseAmount, exTxFee, 2).id
           matcherNode.waitForTransaction(leaseId)
 

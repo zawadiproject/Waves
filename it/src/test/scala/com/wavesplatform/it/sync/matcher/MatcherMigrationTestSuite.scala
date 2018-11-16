@@ -31,7 +31,7 @@ class MatcherMigrationTestSuite extends MatcherSuiteBase {
     "place order and run migration tool" in {
       // Alice places sell order
       val aliceOrder = matcherNode
-        .placeOrder(aliceAcc, aliceWavesPair, OrderType.SELL, 3000000, 3000000, matcherFee)
+        .placeOrder(aliceAcc, aliceWavesPair, OrderType.SELL, 3000000, 3000000, minMatcherFee)
       aliceOrder.status shouldBe "OrderAccepted"
       val firstOrder = aliceOrder.message.id
 

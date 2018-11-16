@@ -30,7 +30,7 @@ trait IntegrationSuiteWithThreeAddresses
   protected lazy val secondAddress: String = sender.createAddress()
   protected lazy val thirdAddress: String  = sender.createAddress()
 
-  def pkByAddress(address: String) = PrivateKeyAccount.fromSeed(sender.seed(address)).right.get
+  def pkByAddress(address: String): PrivateKeyAccount = PrivateKeyAccount.fromSeed(sender.seed(address)).right.get
 
   abstract protected override def beforeAll(): Unit = {
     super.beforeAll()

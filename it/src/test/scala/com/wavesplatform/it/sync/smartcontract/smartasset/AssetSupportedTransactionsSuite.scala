@@ -19,7 +19,7 @@ class AssetSupportedTransactionsSuite extends BaseTransactionSuite {
     asset = sender
       .issue(
         firstAddress,
-        "MyAsset",
+        "commonAsset",
         "Test Asset",
         someAssetAmount,
         0,

@@ -58,7 +58,7 @@ class OrdersFromScriptedAccTestSuite extends MatcherSuiteBase {
     "can trade from non-scripted account" in {
       // Alice places sell order
       val aliceOrder =
-        matcherNode.placeOrder(aliceAcc, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, matcherFee, version = 1, 10.minutes)
+        matcherNode.placeOrder(aliceAcc, aliceWavesPair, OrderType.SELL, 500, 2.waves * Order.PriceConstant, minMatcherFee, version = 1, 10.minutes)
 
       aliceOrder.status shouldBe "OrderAccepted"
 
