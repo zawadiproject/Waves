@@ -74,8 +74,8 @@ case class OrderV1(@ApiModelProperty(
       Longs.toByteArray(matcherFee)
   )
 
-  @ApiModelProperty(hidden = true)
-  val signatureValid = Coeval.evalOnce(crypto.verify(signature, bodyBytes(), senderPublicKey.publicKey))
+//  @ApiModelProperty(hidden = true)
+//  val signatureValid = Coeval.evalOnce(crypto.verify(signature, bodyBytes(), senderPublicKey.publicKey))
 
   @ApiModelProperty(hidden = true)
   override val bytes: Coeval[Array[Byte]] = Coeval.evalOnce(bodyBytes() ++ signature)
