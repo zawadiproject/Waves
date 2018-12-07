@@ -164,7 +164,7 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
 
     val (syncWithChannelClosed, scoreStatsReporter) = RxScoreObserver(
       settings.synchronizationSettings.scoreTTL,
-      3.second,
+      30.second,
       blockchainUpdater.score,
       lastScore,
       blockchainScores,
