@@ -22,6 +22,7 @@ import com.wavesplatform.transaction.smart.script.ScriptCompiler
 import com.wavesplatform.transaction.{TransactionFactory, ValidationError}
 import com.wavesplatform.wallet.Wallet
 
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
 @Path("/addresses")
@@ -32,13 +33,16 @@ case class AddressApiRoute(settings: RestAPISettings,
                            utx: UtxPool,
                            allChannels: ChannelGroup,
                            time: Time,
-                           functionalitySettings: FunctionalitySettings)
+                           functionalitySettings: FunctionalitySettings,
+                           executionContext: ExecutionContext)
     extends ApiRoute
     with BroadcastRoute {
 
   import AddressApiRoute._
 
   val MaxAddressesPerRequest = 1000
+
+  override implicit val ec: ExecutionContext = executionContext
 
   override lazy val route =
     pathPrefix("addresses") {

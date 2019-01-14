@@ -23,7 +23,7 @@ class AliasBroadcastRouteSpec extends RouteSpec("/alias/broadcast/") with Reques
   (utx.putIfNew _).when(*).onCall((t: Transaction) => Left(TransactionValidationError(GenericError("foo"), t))).anyNumberOfTimes()
 
   "returns StateCheckFiled" - {
-    val route = AliasBroadcastApiRoute(settings, utx, allChannels).route
+    val route = AliasBroadcastApiRoute(settings, utx, allChannels, scala.concurrent.ExecutionContext.Implicits.global).route
 
     def posting(url: String, v: JsValue): RouteTestResult = Post(routePath(url), v) ~> route
 
@@ -35,7 +35,7 @@ class AliasBroadcastRouteSpec extends RouteSpec("/alias/broadcast/") with Reques
   }
 
   "returns appropriate error code when validation fails for" - {
-    val route = AliasBroadcastApiRoute(settings, utx, allChannels).route
+    val route = AliasBroadcastApiRoute(settings, utx, allChannels, scala.concurrent.ExecutionContext.Implicits.global).route
 
     "create alias transaction" in forAll(createAliasReq) { req =>
       import com.wavesplatform.api.http.alias.SignedCreateAliasV1Request.broadcastAliasV1RequestReadsFormat

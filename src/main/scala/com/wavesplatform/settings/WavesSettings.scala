@@ -10,6 +10,7 @@ import scala.concurrent.duration._
 case class WavesSettings(directory: String,
                          dataDirectory: String,
                          maxCacheSize: Int,
+                         maxParallelism: Int,
                          maxRollbackDepth: Int,
                          rememberBlocks: FiniteDuration,
                          ntpServer: String,
@@ -35,6 +36,7 @@ object WavesSettings {
     val directory               = config.as[String](s"$configPath.directory")
     val dataDirectory           = config.as[String](s"$configPath.data-directory")
     val maxCacheSize            = config.as[Int](s"$configPath.max-cache-size")
+    val maxParallelism          = config.as[Int](s"$configPath.max-parallelism")
     val maxRollbackDepth        = config.as[Int](s"$configPath.max-rollback-depth")
     val rememberBlocks          = config.as[FiniteDuration](s"$configPath.remember-blocks-interval-in-cache")
     val ntpServer               = config.as[String](s"$configPath.ntp-server")
@@ -54,6 +56,7 @@ object WavesSettings {
       directory,
       dataDirectory,
       maxCacheSize,
+      maxParallelism,
       maxRollbackDepth,
       rememberBlocks,
       ntpServer,

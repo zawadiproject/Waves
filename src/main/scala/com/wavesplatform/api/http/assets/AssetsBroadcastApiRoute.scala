@@ -10,11 +10,14 @@ import com.wavesplatform.transaction.{Transaction, ValidationError}
 import com.wavesplatform.utx.UtxPool
 import io.netty.channel.group.ChannelGroup
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Left, Right}
 
-case class AssetsBroadcastApiRoute(settings: RestAPISettings, utx: UtxPool, allChannels: ChannelGroup) extends ApiRoute with BroadcastRoute {
+case class AssetsBroadcastApiRoute(settings: RestAPISettings, utx: UtxPool, allChannels: ChannelGroup, executionContext: ExecutionContext)
+    extends ApiRoute
+    with BroadcastRoute {
+
+  implicit val ec = executionContext
 
   override val route: Route = pathPrefix("assets" / "broadcast") {
     issue ~ reissue ~ transfer ~ burnRoute ~ batchTransfer ~ exchange

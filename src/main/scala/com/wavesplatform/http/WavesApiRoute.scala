@@ -12,12 +12,21 @@ import io.swagger.annotations._
 import javax.ws.rs.Path
 import com.wavesplatform.wallet.Wallet
 
+import scala.concurrent.ExecutionContext
+
 @Path("/waves")
 @Api(value = "waves")
 @Deprecated
-case class WavesApiRoute(settings: RestAPISettings, wallet: Wallet, utx: UtxPool, allChannels: ChannelGroup, time: Time)
+case class WavesApiRoute(settings: RestAPISettings,
+                         wallet: Wallet,
+                         utx: UtxPool,
+                         allChannels: ChannelGroup,
+                         time: Time,
+                         executionContext: ExecutionContext)
     extends ApiRoute
     with BroadcastRoute {
+
+  override implicit val ec: ExecutionContext = executionContext
 
   override lazy val route = pathPrefix("waves") {
     externalPayment ~ signPayment ~ broadcastSignedPayment ~ payment ~ createdSignedPayment

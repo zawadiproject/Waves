@@ -12,14 +12,23 @@ import com.wavesplatform.utils.Time
 import com.wavesplatform.transaction.TransactionFactory
 import com.wavesplatform.wallet.Wallet
 
+import scala.concurrent.ExecutionContext
+
 @Path("/payment")
 @Api(value = "/payment")
 @Deprecated
-case class PaymentApiRoute(settings: RestAPISettings, wallet: Wallet, utx: UtxPool, allChannels: ChannelGroup, time: Time)
+case class PaymentApiRoute(settings: RestAPISettings,
+                           wallet: Wallet,
+                           utx: UtxPool,
+                           allChannels: ChannelGroup,
+                           time: Time,
+                           executionContext: ExecutionContext)
     extends ApiRoute
     with BroadcastRoute {
 
   override lazy val route = payment
+
+  override implicit val ec: ExecutionContext = executionContext
 
   @Deprecated
   @ApiOperation(

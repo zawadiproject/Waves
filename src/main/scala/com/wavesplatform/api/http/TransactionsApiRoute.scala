@@ -27,6 +27,7 @@ import io.swagger.annotations._
 import javax.ws.rs.Path
 import play.api.libs.json._
 
+import scala.concurrent.ExecutionContext
 import scala.util.Success
 
 @Path("/transactions")
@@ -37,10 +38,13 @@ case class TransactionsApiRoute(settings: RestAPISettings,
                                 blockchain: Blockchain,
                                 utx: UtxPool,
                                 allChannels: ChannelGroup,
-                                time: Time)
+                                time: Time,
+                                executionContext: ExecutionContext)
     extends ApiRoute
     with BroadcastRoute
     with CommonApiFunctions {
+
+  override implicit val ec: ExecutionContext = executionContext
 
   override lazy val route =
     pathPrefix("transactions") {

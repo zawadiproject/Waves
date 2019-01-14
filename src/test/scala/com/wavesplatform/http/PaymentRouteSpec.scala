@@ -40,7 +40,7 @@ class PaymentRouteSpec
         val sender = testWallet.privateKeyAccounts.head
         val tx     = TransferTransactionV1.selfSigned(None, sender, recipient, amount, timestamp, None, fee, Array())
 
-        val route = PaymentApiRoute(restAPISettings, testWallet, utx, allChannels, time).route
+        val route = PaymentApiRoute(restAPISettings, testWallet, utx, allChannels, time, scala.concurrent.ExecutionContext.Implicits.global).route
 
         val req = Json.obj("sender" -> sender.address, "recipient" -> recipient.stringRepr, "amount" -> amount, "fee" -> fee)
 

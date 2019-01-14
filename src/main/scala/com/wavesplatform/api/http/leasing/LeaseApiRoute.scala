@@ -18,11 +18,21 @@ import io.swagger.annotations._
 import javax.ws.rs.Path
 import play.api.libs.json.JsNumber
 
+import scala.concurrent.ExecutionContext
+
 @Path("/leasing")
 @Api(value = "/leasing")
-case class LeaseApiRoute(settings: RestAPISettings, wallet: Wallet, blockchain: Blockchain, utx: UtxPool, allChannels: ChannelGroup, time: Time)
+case class LeaseApiRoute(settings: RestAPISettings,
+                         wallet: Wallet,
+                         blockchain: Blockchain,
+                         utx: UtxPool,
+                         allChannels: ChannelGroup,
+                         time: Time,
+                         executionContext: ExecutionContext)
     extends ApiRoute
     with BroadcastRoute {
+
+  override implicit val ec: ExecutionContext = executionContext
 
   override val route = pathPrefix("leasing") {
     lease ~ cancel ~ active

@@ -15,11 +15,21 @@ import io.swagger.annotations._
 import javax.ws.rs.Path
 import play.api.libs.json.{Format, Json}
 
+import scala.concurrent.ExecutionContext
+
 @Path("/alias")
 @Api(value = "/alias")
-case class AliasApiRoute(settings: RestAPISettings, wallet: Wallet, utx: UtxPool, allChannels: ChannelGroup, time: Time, blockchain: Blockchain)
+case class AliasApiRoute(settings: RestAPISettings,
+                         wallet: Wallet,
+                         utx: UtxPool,
+                         allChannels: ChannelGroup,
+                         time: Time,
+                         blockchain: Blockchain,
+                         executionContext: ExecutionContext)
     extends ApiRoute
     with BroadcastRoute {
+
+  override implicit val ec: ExecutionContext = executionContext
 
   override val route = pathPrefix("alias") {
     alias ~ addressOfAlias ~ aliasOfAddress

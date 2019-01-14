@@ -38,7 +38,14 @@ class TransactionsRouteSpec
   private val blockchain  = mock[Blockchain]
   private val utx         = mock[UtxPool]
   private val allChannels = mock[ChannelGroup]
-  private val route       = TransactionsApiRoute(restAPISettings, TestFunctionalitySettings.Stub, wallet, blockchain, utx, allChannels, new TestTime).route
+  private val route = TransactionsApiRoute(restAPISettings,
+                                           TestFunctionalitySettings.Stub,
+                                           wallet,
+                                           blockchain,
+                                           utx,
+                                           allChannels,
+                                           new TestTime,
+                                           scala.concurrent.ExecutionContext.Implicits.global).route
 
   private val invalidBase58Gen = alphaNumStr.map(_ + "0")
 
@@ -62,7 +69,14 @@ class TransactionsRouteSpec
         (blockchain.hasScript _).expects(sender.toAddress).returning(false).anyNumberOfTimes()
         (blockchain.activatedFeatures _).expects().returning(featuresSettings.preActivatedFeatures)
 
-        val route = TransactionsApiRoute(restAPISettings, featuresSettings, wallet, blockchain, utx, allChannels, new TestTime).route
+        val route = TransactionsApiRoute(restAPISettings,
+                                         featuresSettings,
+                                         wallet,
+                                         blockchain,
+                                         utx,
+                                         allChannels,
+                                         new TestTime,
+                                         scala.concurrent.ExecutionContext.Implicits.global).route
 
         Post(routePath("/calculateFee"), transferTx) ~> route ~> check {
           status shouldEqual StatusCodes.OK
@@ -97,7 +111,14 @@ class TransactionsRouteSpec
         (blockchain.hasScript _).expects(sender.toAddress).returning(false).anyNumberOfTimes()
         (blockchain.activatedFeatures _).expects().returning(featuresSettings.preActivatedFeatures)
 
-        val route = TransactionsApiRoute(restAPISettings, featuresSettings, wallet, blockchain, utx, allChannels, new TestTime).route
+        val route = TransactionsApiRoute(restAPISettings,
+                                         featuresSettings,
+                                         wallet,
+                                         blockchain,
+                                         utx,
+                                         allChannels,
+                                         new TestTime,
+                                         scala.concurrent.ExecutionContext.Implicits.global).route
 
         Post(routePath("/calculateFee"), transferTx) ~> route ~> check {
           status shouldEqual StatusCodes.OK
@@ -128,7 +149,14 @@ class TransactionsRouteSpec
         (blockchain.hasScript _).expects(sender.toAddress).returning(false).anyNumberOfTimes()
         (blockchain.activatedFeatures _).expects().returning(featuresSettings.preActivatedFeatures)
 
-        val route = TransactionsApiRoute(restAPISettings, featuresSettings, wallet, blockchain, utx, allChannels, new TestTime).route
+        val route = TransactionsApiRoute(restAPISettings,
+                                         featuresSettings,
+                                         wallet,
+                                         blockchain,
+                                         utx,
+                                         allChannels,
+                                         new TestTime,
+                                         scala.concurrent.ExecutionContext.Implicits.global).route
 
         Post(routePath("/calculateFee"), transferTx) ~> route ~> check {
           status shouldEqual StatusCodes.OK
@@ -170,7 +198,14 @@ class TransactionsRouteSpec
           )))
           .anyNumberOfTimes()
 
-        val route = TransactionsApiRoute(restAPISettings, featuresSettings, wallet, blockchain, utx, allChannels, new TestTime).route
+        val route = TransactionsApiRoute(restAPISettings,
+                                         featuresSettings,
+                                         wallet,
+                                         blockchain,
+                                         utx,
+                                         allChannels,
+                                         new TestTime,
+                                         scala.concurrent.ExecutionContext.Implicits.global).route
 
         Post(routePath("/calculateFee"), transferTx) ~> route ~> check {
           status shouldEqual StatusCodes.OK
@@ -213,7 +248,14 @@ class TransactionsRouteSpec
           )))
           .anyNumberOfTimes()
 
-        val route = TransactionsApiRoute(restAPISettings, featuresSettings, wallet, blockchain, utx, allChannels, new TestTime).route
+        val route = TransactionsApiRoute(restAPISettings,
+                                         featuresSettings,
+                                         wallet,
+                                         blockchain,
+                                         utx,
+                                         allChannels,
+                                         new TestTime,
+                                         scala.concurrent.ExecutionContext.Implicits.global).route
 
         Post(routePath("/calculateFee"), transferTx) ~> route ~> check {
           status shouldEqual StatusCodes.OK
@@ -285,7 +327,14 @@ class TransactionsRouteSpec
         Gen.const({
           val b = mock[Blockchain]
           (b.addressTransactions _).expects(*, *, *, *).returning(Right(Seq.empty[(Int, Transaction)])).anyNumberOfTimes()
-          TransactionsApiRoute(restAPISettings, TestFunctionalitySettings.Stub, wallet, b, utx, allChannels, new TestTime).route
+          TransactionsApiRoute(restAPISettings,
+                               TestFunctionalitySettings.Stub,
+                               wallet,
+                               b,
+                               utx,
+                               allChannels,
+                               new TestTime,
+                               scala.concurrent.ExecutionContext.Implicits.global).route
         })
 
       "address and limit" in {

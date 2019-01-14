@@ -34,7 +34,7 @@ class AssetsRouteSpec extends RouteSpec("/assets") with RequestGen with PathMock
   (allChannels.writeAndFlush(_: Any)).when(*).onCall((_: Any) => null).anyNumberOfTimes()
 
   "/transfer" - {
-    val route = AssetsApiRoute(settings, wallet, utx, allChannels, state, new TestTime()).route
+    val route = AssetsApiRoute(settings, wallet, utx, allChannels, state, new TestTime(), scala.concurrent.ExecutionContext.Implicits.global).route
 
     def posting[A: Writes](v: A): RouteTestResult = Post(routePath("/transfer"), v).addHeader(ApiKeyHeader) ~> route
 

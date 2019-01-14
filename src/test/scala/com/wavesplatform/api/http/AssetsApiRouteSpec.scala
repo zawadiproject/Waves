@@ -29,7 +29,8 @@ class AssetsApiRouteSpec
     mock[UtxPool],
     mock[ChannelGroup],
     blockchain,
-    new TestTime
+    new TestTime,
+    scala.concurrent.ExecutionContext.Implicits.global
   ).route
 
   private val smartAssetTx = smartIssueTransactionGen().retryUntil(_.script.nonEmpty).sample.get

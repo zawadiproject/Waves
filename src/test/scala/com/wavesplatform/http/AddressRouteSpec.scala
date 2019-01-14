@@ -36,7 +36,8 @@ class AddressRouteSpec
     mock[UtxPool],
     mock[ChannelGroup],
     new TestTime,
-    TestFunctionalitySettings.Stub
+    TestFunctionalitySettings.Stub,
+    scala.concurrent.ExecutionContext.Implicits.global
   ).route
 
   private val generatedMessages = for {

@@ -31,7 +31,7 @@ class AssetsBroadcastRouteSpec extends RouteSpec("/assets/broadcast/") with Requ
 
   "returns StateCheckFailed" - {
 
-    val route = AssetsBroadcastApiRoute(settings, utx, allChannels).route
+    val route = AssetsBroadcastApiRoute(settings, utx, allChannels, scala.concurrent.ExecutionContext.Implicits.global).route
 
     val vt = Table[String, G[_ <: Transaction], JsValue => JsValue](
       ("url", "generator", "transform"),
@@ -61,7 +61,7 @@ class AssetsBroadcastRouteSpec extends RouteSpec("/assets/broadcast/") with Requ
 
   "returns appropriate error code when validation fails for" - {
     "issue transaction" in {
-      val route = AssetsBroadcastApiRoute(settings, utx, allChannels).route
+      val route = AssetsBroadcastApiRoute(settings, utx, allChannels, scala.concurrent.ExecutionContext.Implicits.global).route
       forAll(broadcastIssueReq) { ir =>
         def posting[A: Writes](v: A): RouteTestResult = Post(routePath("issue"), v) ~> route
 
@@ -90,7 +90,7 @@ class AssetsBroadcastRouteSpec extends RouteSpec("/assets/broadcast/") with Requ
     }
 
     "reissue transaction" in {
-      val route = AssetsBroadcastApiRoute(settings, utx, allChannels).route
+      val route = AssetsBroadcastApiRoute(settings, utx, allChannels, scala.concurrent.ExecutionContext.Implicits.global).route
       forAll(broadcastReissueReq) { rr =>
         def posting[A: Writes](v: A): RouteTestResult = Post(routePath("reissue"), v) ~> route
 
@@ -105,7 +105,7 @@ class AssetsBroadcastRouteSpec extends RouteSpec("/assets/broadcast/") with Requ
     }
 
     "burn transaction" in {
-      val route = AssetsBroadcastApiRoute(settings, utx, allChannels).route
+      val route = AssetsBroadcastApiRoute(settings, utx, allChannels, scala.concurrent.ExecutionContext.Implicits.global).route
       forAll(broadcastBurnReq) { br =>
         def posting[A: Writes](v: A): RouteTestResult = Post(routePath("burn"), v) ~> route
 
@@ -122,7 +122,7 @@ class AssetsBroadcastRouteSpec extends RouteSpec("/assets/broadcast/") with Requ
     }
 
     "transfer transaction" in {
-      val route = AssetsBroadcastApiRoute(settings, utx, allChannels).route
+      val route = AssetsBroadcastApiRoute(settings, utx, allChannels, scala.concurrent.ExecutionContext.Implicits.global).route
       forAll(broadcastTransferReq) { tr =>
         def posting[A: Writes](v: A): RouteTestResult = Post(routePath("transfer"), v) ~> route
 
@@ -165,7 +165,7 @@ class AssetsBroadcastRouteSpec extends RouteSpec("/assets/broadcast/") with Requ
     val alwaysSendAllChannels = stub[ChannelGroup]
     (alwaysSendAllChannels.writeAndFlush(_: Any)).when(*).onCall((_: Any) => null).anyNumberOfTimes()
 
-    val route = AssetsBroadcastApiRoute(settings, alwaysApproveUtx, alwaysSendAllChannels).route
+    val route = AssetsBroadcastApiRoute(settings, alwaysApproveUtx, alwaysSendAllChannels, scala.concurrent.ExecutionContext.Implicits.global).route
 
     val seed               = "seed".getBytes()
     val senderPrivateKey   = Wallet.generateNewAccount(seed, 0)

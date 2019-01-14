@@ -2,7 +2,7 @@ package com.wavesplatform
 
 import java.io.File
 import java.security.Security
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ConcurrentHashMap, Executors}
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
@@ -46,7 +46,7 @@ import monix.reactive.subjects.ConcurrentSubject
 import org.influxdb.dto.Point
 import org.slf4j.bridge.SLF4JBridgeHandler
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -83,6 +83,9 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
   private var rxExtensionLoaderShutdown: Option[RxExtensionLoaderShutdownHook] = None
   private var maybeUtx: Option[UtxPool]                                        = None
   private var maybeNetwork: Option[NS]                                         = None
+
+  private val executionContext =
+    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(settings.maxParallelism))
 
   def apiShutdown(): Unit = {
     for {
@@ -219,10 +222,11 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
                              blockchainUpdater,
                              utxStorage,
                              allChannels,
-                             time),
+                             time,
+                             executionContext),
         NxtConsensusApiRoute(settings.restAPISettings, blockchainUpdater, settings.blockchainSettings.functionalitySettings),
         WalletApiRoute(settings.restAPISettings, wallet),
-        PaymentApiRoute(settings.restAPISettings, wallet, utxStorage, allChannels, time),
+        PaymentApiRoute(settings.restAPISettings, wallet, utxStorage, allChannels, time, executionContext),
         UtilsApiRoute(time, settings.restAPISettings),
         PeersApiRoute(settings.restAPISettings, network.connect, peerDatabase, establishedConnections),
         AddressApiRoute(settings.restAPISettings,
@@ -231,7 +235,8 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
                         utxStorage,
                         allChannels,
                         time,
-                        settings.blockchainSettings.functionalitySettings),
+                        settings.blockchainSettings.functionalitySettings,
+                        executionContext),
         DebugApiRoute(
           settings,
           time,
@@ -250,14 +255,14 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
           scoreStatsReporter,
           configRoot
         ),
-        WavesApiRoute(settings.restAPISettings, wallet, utxStorage, allChannels, time),
-        AssetsApiRoute(settings.restAPISettings, wallet, utxStorage, allChannels, blockchainUpdater, time),
+        WavesApiRoute(settings.restAPISettings, wallet, utxStorage, allChannels, time, executionContext),
+        AssetsApiRoute(settings.restAPISettings, wallet, utxStorage, allChannels, blockchainUpdater, time, executionContext),
         ActivationApiRoute(settings.restAPISettings, settings.blockchainSettings.functionalitySettings, settings.featuresSettings, blockchainUpdater),
-        AssetsBroadcastApiRoute(settings.restAPISettings, utxStorage, allChannels),
-        LeaseApiRoute(settings.restAPISettings, wallet, blockchainUpdater, utxStorage, allChannels, time),
-        LeaseBroadcastApiRoute(settings.restAPISettings, utxStorage, allChannels),
-        AliasApiRoute(settings.restAPISettings, wallet, utxStorage, allChannels, time, blockchainUpdater),
-        AliasBroadcastApiRoute(settings.restAPISettings, utxStorage, allChannels)
+        AssetsBroadcastApiRoute(settings.restAPISettings, utxStorage, allChannels, executionContext),
+        LeaseApiRoute(settings.restAPISettings, wallet, blockchainUpdater, utxStorage, allChannels, time, executionContext),
+        LeaseBroadcastApiRoute(settings.restAPISettings, utxStorage, allChannels, executionContext),
+        AliasApiRoute(settings.restAPISettings, wallet, utxStorage, allChannels, time, blockchainUpdater, executionContext),
+        AliasBroadcastApiRoute(settings.restAPISettings, utxStorage, allChannels, executionContext)
       )
 
       val apiTypes: Set[Class[_]] = Set(

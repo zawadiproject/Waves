@@ -26,7 +26,7 @@ class LeaseBroadcastRouteSpec extends RouteSpec("/leasing/broadcast/") with Requ
   (utx.putIfNew _).when(*).onCall((t: Transaction) => Left(TransactionValidationError(GenericError("foo"), t))).anyNumberOfTimes()
 
   "returns StateCheckFiled" - {
-    val route = LeaseBroadcastApiRoute(settings, utx, allChannels).route
+    val route = LeaseBroadcastApiRoute(settings, utx, allChannels, scala.concurrent.ExecutionContext.Implicits.global).route
 
     val vt = Table[String, G[_ <: Transaction], (JsValue) => JsValue](
       ("url", "generator", "transform"),
@@ -49,7 +49,7 @@ class LeaseBroadcastRouteSpec extends RouteSpec("/leasing/broadcast/") with Requ
   }
 
   "returns appropriate error code when validation fails for" - {
-    val route = LeaseBroadcastApiRoute(settings, utx, allChannels).route
+    val route = LeaseBroadcastApiRoute(settings, utx, allChannels, scala.concurrent.ExecutionContext.Implicits.global).route
 
     "lease transaction" in forAll(leaseReq) { lease =>
       def posting[A: Writes](v: A): RouteTestResult = Post(routePath("lease"), v) ~> route

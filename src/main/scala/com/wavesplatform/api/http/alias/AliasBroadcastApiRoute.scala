@@ -7,7 +7,14 @@ import com.wavesplatform.settings.RestAPISettings
 import com.wavesplatform.utx.UtxPool
 import io.netty.channel.group.ChannelGroup
 
-case class AliasBroadcastApiRoute(settings: RestAPISettings, utx: UtxPool, allChannels: ChannelGroup) extends ApiRoute with BroadcastRoute {
+import scala.concurrent.ExecutionContext
+
+case class AliasBroadcastApiRoute(settings: RestAPISettings, utx: UtxPool, allChannels: ChannelGroup, executionContext: ExecutionContext)
+    extends ApiRoute
+    with BroadcastRoute {
+
+  override implicit val ec: ExecutionContext = executionContext
+
   override val route = pathPrefix("alias" / "broadcast") {
     signedCreate
   }

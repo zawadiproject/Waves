@@ -30,14 +30,23 @@ import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.instances.option.catsStdInstancesForOption
 import cats.instances.either.catsStdInstancesForEither
-import scala.concurrent.Future
+
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Success
 
 @Path("/assets")
 @Api(value = "assets")
-case class AssetsApiRoute(settings: RestAPISettings, wallet: Wallet, utx: UtxPool, allChannels: ChannelGroup, blockchain: Blockchain, time: Time)
+case class AssetsApiRoute(settings: RestAPISettings,
+                          wallet: Wallet,
+                          utx: UtxPool,
+                          allChannels: ChannelGroup,
+                          blockchain: Blockchain,
+                          time: Time,
+                          executionContext: ExecutionContext)
     extends ApiRoute
     with BroadcastRoute {
+
+  override implicit val ec: ExecutionContext = executionContext
 
   private val distributionTaskScheduler = {
     val executor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue[Runnable](AssetsApiRoute.MAX_DISTRIBUTION_TASKS))
