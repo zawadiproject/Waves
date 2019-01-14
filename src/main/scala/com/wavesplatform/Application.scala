@@ -425,7 +425,10 @@ object Application extends ScorexLogging {
     val time             = new NTP(settings.ntpServer)
     val isMetricsStarted = Metrics.start(settings.metrics, time)
 
-    RootActorSystem.start("wavesplatform", config) { actorSystem =>
+    val apiExecutionContext =
+      ExecutionContext.fromExecutor(Executors.newFixedThreadPool(settings.restAPISettings.maxParallelism))
+
+    RootActorSystem.start("wavesplatform", config, apiExecutionContext) { actorSystem =>
       import actorSystem.dispatcher
       isMetricsStarted.foreach { started =>
         if (started) {

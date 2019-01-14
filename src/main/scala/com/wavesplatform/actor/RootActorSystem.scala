@@ -4,8 +4,8 @@ import akka.actor.{ActorSystem, AllForOneStrategy, SupervisorStrategy, Superviso
 import com.typesafe.config.Config
 import com.wavesplatform.utils.ScorexLogging
 
-import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext}
 
 object RootActorSystem extends ScorexLogging {
   @volatile private var failed = false
@@ -19,8 +19,12 @@ object RootActorSystem extends ScorexLogging {
     }
   }
 
-  def start(id: String, config: Config)(init: ActorSystem => Unit): Unit = {
-    val system = ActorSystem(id, config)
+  def start(id: String, config: Config, executionContext: ExecutionContext)(init: ActorSystem => Unit): Unit = {
+    val system = ActorSystem(
+      name = id,
+      config = Some(config),
+      defaultExecutionContext = Some(executionContext)
+    )
     try {
       init(system)
     } catch {
