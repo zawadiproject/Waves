@@ -84,9 +84,7 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
   private var maybeUtx: Option[UtxPool]                                        = None
   private var maybeNetwork: Option[NS]                                         = None
 
-  private val executionContext =
-    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(settings.maxParallelism))
-
+  private val executionContext = actorSystem.dispatcher
   def apiShutdown(): Unit = {
     for {
       u <- maybeUtx
@@ -425,10 +423,9 @@ object Application extends ScorexLogging {
     val time             = new NTP(settings.ntpServer)
     val isMetricsStarted = Metrics.start(settings.metrics, time)
 
-    val apiExecutionContext =
-      ExecutionContext.fromExecutor(Executors.newFixedThreadPool(settings.restAPISettings.maxParallelism))
+    val executionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(settings.maxParallelism))
 
-    RootActorSystem.start("wavesplatform", config, apiExecutionContext) { actorSystem =>
+    RootActorSystem.start("wavesplatform", config, executionContext) { actorSystem =>
       import actorSystem.dispatcher
       isMetricsStarted.foreach { started =>
         if (started) {

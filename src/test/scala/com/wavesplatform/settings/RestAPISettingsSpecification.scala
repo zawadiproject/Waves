@@ -11,7 +11,6 @@ class RestAPISettingsSpecification extends FlatSpec with Matchers {
         |    enable: yes
         |    bind-address: "127.0.0.1"
         |    port: 6869
-        |    max-parallelism: 2
         |    api-key-hash: "BASE58APIKEYHASH"
         |    cors: yes
         |    api-key-different-host: yes
@@ -27,7 +26,6 @@ class RestAPISettingsSpecification extends FlatSpec with Matchers {
     settings.port should be(6869)
     settings.apiKeyHash should be("BASE58APIKEYHASH")
     settings.cors should be(true)
-    settings.maxParallelism should be(2)
     settings.apiKeyDifferentHost should be(true)
     settings.transactionByAddressLimit should be(10000)
     settings.distributionAddressLimit should be(10000)
