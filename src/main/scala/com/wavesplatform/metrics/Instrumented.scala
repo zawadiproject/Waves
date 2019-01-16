@@ -16,7 +16,7 @@ trait Instrumented {
 
   def measureLog[R](s: String)(f: => R): R = {
     val (r, time) = withTime(f)
-    log.trace(s"$s took ${time}ms")
+    log.info(s"$s took ${time}ms")
     r
   }
 

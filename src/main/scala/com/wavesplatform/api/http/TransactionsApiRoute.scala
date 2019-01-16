@@ -1,5 +1,7 @@
 package com.wavesplatform.api.http
 
+import java.util.concurrent.Executors
+
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
@@ -20,7 +22,7 @@ import com.wavesplatform.transaction.assets._
 import com.wavesplatform.transaction.lease._
 import com.wavesplatform.transaction.smart.SetScriptTransaction
 import com.wavesplatform.transaction.transfer._
-import com.wavesplatform.utils.Time
+import com.wavesplatform.utils.{ScorexLogging, Time}
 import com.wavesplatform.utx.UtxPool
 import com.wavesplatform.wallet.Wallet
 import io.netty.channel.group.ChannelGroup
@@ -44,7 +46,9 @@ case class TransactionsApiRoute(settings: RestAPISettings,
                                 executionContext: ExecutionContext)
     extends ApiRoute
     with BroadcastRoute
-    with CommonApiFunctions {
+    with CommonApiFunctions
+    with Instrumented
+    with ScorexLogging {
 
   val addressTransactionTime     = Kamon.timer("api-address-transactions.request")
   val addressTransactionQueue    = Kamon.rangeSampler("api-address-transactions.queue")
@@ -52,6 +56,8 @@ case class TransactionsApiRoute(settings: RestAPISettings,
   val addressTransactionDBTime   = Kamon.timer("api-address-transactions.db")
 
   override implicit val ec: ExecutionContext = executionContext
+
+  val atec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(5))
 
   override lazy val route =
     pathPrefix("transactions") {
@@ -73,60 +79,65 @@ case class TransactionsApiRoute(settings: RestAPISettings,
       new ApiImplicitParam(name = "after", value = "Id of transaction to paginate after", required = false, dataType = "string", paramType = "query")
     ))
   def addressLimit: Route = {
-    def decAndReturn[A](r: Future[A]): Future[A] = {
-      r.map { rr =>
-        addressTransactionQueue.decrement()
-        rr
-      }
+//    def decAndReturn[A](r: Future[A]): Future[A] = {
+//      r.map { rr =>
+//        addressTransactionQueue.decrement()
+//        rr
+//      }
+//    }
+//
+//    def getResponse(address: Address, limit: Int, fromId: Option[ByteStr]): Either[String, JsArray] = {
+//      val txs = measureLog("api-address-transactions.db") {
+//        blockchain
+//          .addressTransactions(address, Set.empty, limit, fromId)
+//      }
+//
+//      val json = measureLog("api-address-transactions.json") {
+//        txs.map { txSeq =>
+//          txSeq.map {
+//            case (h, tx) =>
+//              txToCompactJson(address, tx) + ("height" -> JsNumber(h))
+//          }
+//        }
+//      }
+//
+//      json.map(txs => JsArray(txs))
+//    }
+
+    (get & pathPrefix("address" / Segment / "limit" / IntNumber) & parameter('after.?)) { (addr, lim, after) =>
+      complete(transactionsByAddress(addr, lim, after))
     }
-
-    def getResponse(address: Address, limit: Int, fromId: Option[ByteStr]): Either[String, JsArray] = {
-      val txs = addressTransactionDBTime.measure {
-        blockchain
-          .addressTransactions(address, Set.empty, limit, fromId)
-      }
-
-      val json = addressTransactionJsonTime.measure {
-        txs.map { txSeq =>
-          txSeq.map {
-            case (h, tx) =>
-              txToCompactJson(address, tx) + ("height" -> JsNumber(h))
-          }
-        }
-      }
-
-      json.map(txs => JsArray(txs))
-    }
-    (get & pathPrefix("address" / Segment)) { address =>
-      addressTransactionQueue.increment()
-      val rr = Address.fromString(address) match {
-        case Left(e) => complete(ApiError.fromValidationError(e))
-        case Right(a) =>
-          (path("limit" / IntNumber) & parameter('after.?)) { (limit, after) =>
-            if (limit > settings.transactionByAddressLimit) complete(TooBigArrayAllocation)
-            else
-              after match {
-                case Some(t) =>
-                  ByteStr.decodeBase58(t) match {
-                    case Success(id) =>
-                      getResponse(a, limit, Some(id)).fold(
-                        _ => complete(StatusCodes.NotFound -> Json.obj("status" -> "error", "details" -> "Transaction is not in blockchain")),
-                        complete(_)
-                      )
-                    case _ => complete(CustomValidationError(s"Unable to decode transaction id $t"))
-                  }
-                case None =>
-                  getResponse(a, limit, None)
-                    .fold(
-                      _ => complete(StatusCodes.NotFound),
-                      complete(_)
-                    )
-              }
-          } ~ complete(CustomValidationError("invalid.limit"))
-      }
-
-      rr.andThen(decAndReturn)
-    }
+//
+//    (get & pathPrefix("address" / Segment)) { address =>
+//      addressTransactionQueue.increment()
+//      val rr = Address.fromString(address) match {
+//        case Left(e) => complete(ApiError.fromValidationError(e))
+//        case Right(a) =>
+//          (path("limit" / IntNumber) & parameter('after.?)) { (limit, after) =>
+//            if (limit > settings.transactionByAddressLimit) complete(TooBigArrayAllocation)
+//            else
+//              after match {
+//                case Some(t) =>
+//                  ByteStr.decodeBase58(t) match {
+//                    case Success(id) =>
+//                      getResponse(a, limit, Some(id)).fold(
+//                        _ => complete(StatusCodes.NotFound -> Json.obj("status" -> "error", "details" -> "Transaction is not in blockchain")),
+//                        complete(_)
+//                      )
+//                    case _ => complete(CustomValidationError(s"Unable to decode transaction id $t"))
+//                  }
+//                case None =>
+//                  getResponse(a, limit, None)
+//                    .fold(
+//                      _ => complete(StatusCodes.NotFound),
+//                      complete(_)
+//                    )
+//              }
+//          } ~ complete(CustomValidationError("invalid.limit"))
+//      }
+//
+//      rr.andThen(decAndReturn)
+//    }
   }
 
   @Path("/info/{id}")
@@ -346,4 +357,48 @@ case class TransactionsApiRoute(settings: RestAPISettings,
       case _ => txToExtendedJson(tx)
     }
   }
+
+  def getResponse(address: Address, limit: Int, fromId: Option[ByteStr]): Either[String, JsArray] = {
+    val txs = measureLog("api-address-transactions.db") {
+      blockchain
+        .addressTransactions(address, Set.empty, limit, fromId)
+    }
+
+    val json = measureLog("api-address-transactions.json") {
+      txs.map { txSeq =>
+        txSeq.map {
+          case (h, tx) =>
+            txToCompactJson(address, tx) + ("height" -> JsNumber(h))
+        }
+      }
+    }
+
+    json.map(txs => JsArray(txs))
+  }
+
+  def transactionsByAddress(addressParam: String, limitParam: Int, maybeAfterParam: Option[String]): Future[ToResponseMarshallable] = Future {
+    val result = for {
+      address <- Address.fromString(addressParam).left.map(ApiError.fromValidationError)
+      limit <- Either.cond(limitParam < settings.transactionByAddressLimit, limitParam, TooBigArrayAllocation)
+      maybeAfter <- maybeAfterParam match {
+        case Some(v) => ByteStr.decodeBase58(v)
+          .fold(
+            _ => Left(CustomValidationError(s"Unable to decode transaction id $v")),
+            id => Right(Some(id))
+          )
+        case None => Right(None)
+      }
+      result <- getResponse(address, limit, maybeAfter).fold(
+        err => Left(CustomValidationError(err)),
+        arr => Right(arr)
+      )
+    } yield result
+
+    log.info(result.fold(err => err.message, _ => "success"))
+
+    result match {
+      case Right(arr) => arr: ToResponseMarshallable
+      case Left(err) => err: ToResponseMarshallable
+    }
+  } (atec)
 }

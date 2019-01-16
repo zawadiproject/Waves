@@ -1,6 +1,10 @@
 package com.wavesplatform.api
 
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
+import akka.http.scaladsl.model.Uri
+import akka.http.scaladsl.model.Uri.Path
+import akka.http.scaladsl.server.PathMatcher.{Matched, Unmatched}
+import akka.http.scaladsl.server.{PathMatcher, PathMatcher1}
 import com.wavesplatform.http.ApiMarshallers
 import com.wavesplatform.api.http.DataRequest._
 import com.wavesplatform.api.http.alias.{CreateAliasV1Request, CreateAliasV2Request}
@@ -13,13 +17,13 @@ import com.wavesplatform.transaction.assets._
 import com.wavesplatform.transaction.lease._
 import com.wavesplatform.transaction.smart.SetScriptTransaction
 import com.wavesplatform.transaction.transfer._
-import com.wavesplatform.account.PublicKeyAccount
-
+import com.wavesplatform.account.{Address, PublicKeyAccount}
 import play.api.libs.json._
 
 import scala.util.{Success, Try}
 
 package object http extends ApiMarshallers {
+
   val versionReads: Reads[Byte] = {
     val defaultByteReads = implicitly[Reads[Byte]]
     val intToByteReads   = implicitly[Reads[Int]].map(_.toByte)
