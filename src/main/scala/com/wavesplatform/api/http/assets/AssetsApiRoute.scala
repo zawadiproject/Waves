@@ -4,6 +4,10 @@ import java.util.concurrent._
 
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.server.Route
+import cats.instances.either.catsStdInstancesForEither
+import cats.instances.option.catsStdInstancesForOption
+import cats.syntax.either._
+import cats.syntax.traverse._
 import com.google.common.base.Charsets
 import com.wavesplatform.account.Address
 import com.wavesplatform.api.http._
@@ -26,10 +30,6 @@ import javax.ws.rs.Path
 import monix.eval.Task
 import monix.execution.Scheduler
 import play.api.libs.json._
-import cats.syntax.either._
-import cats.syntax.traverse._
-import cats.instances.option.catsStdInstancesForOption
-import cats.instances.either.catsStdInstancesForEither
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Success

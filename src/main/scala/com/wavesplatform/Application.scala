@@ -2,7 +2,7 @@ package com.wavesplatform
 
 import java.io.File
 import java.security.Security
-import java.util.concurrent.{ConcurrentHashMap, Executors}
+import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
@@ -46,7 +46,7 @@ import monix.reactive.subjects.ConcurrentSubject
 import org.influxdb.dto.Point
 import org.slf4j.bridge.SLF4JBridgeHandler
 
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -85,6 +85,7 @@ class Application(val actorSystem: ActorSystem, val settings: WavesSettings, con
   private var maybeNetwork: Option[NS]                                         = None
 
   private val executionContext = actorSystem.dispatcher
+
   def apiShutdown(): Unit = {
     for {
       u <- maybeUtx
@@ -423,9 +424,7 @@ object Application extends ScorexLogging {
     val time             = new NTP(settings.ntpServer)
     val isMetricsStarted = Metrics.start(settings.metrics, time)
 
-    val executionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(settings.maxParallelism))
-
-    RootActorSystem.start("wavesplatform", config, executionContext) { actorSystem =>
+    RootActorSystem.start("wavesplatform", config) { actorSystem =>
       import actorSystem.dispatcher
       isMetricsStarted.foreach { started =>
         if (started) {
