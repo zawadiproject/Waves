@@ -151,11 +151,10 @@ class Matcher(actorSystem: ActorSystem,
                   case _                => requests.get(jLong.valueOf(eventWithMeta.offset)).trySuccess(r)
                 }
               }
-              .transform {
+              .onComplete {
                 case Failure(e) =>
                   log.warn(s"An error during processing an event with offset ${eventWithMeta.offset}: ${e.getMessage}", e)
-                  ok
-                case _ => ok
+                case _ =>
               }
           }
         )
