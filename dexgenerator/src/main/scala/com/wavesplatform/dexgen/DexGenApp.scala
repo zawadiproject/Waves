@@ -74,6 +74,7 @@ object DexGenApp extends App with ScoptImplicits with FicusImplicits with Enumer
   def issueAssets(endpoint: String, richAddressSeed: String, n: Int)(implicit tag: String): Seq[AssetId] = {
     val node = api.to(endpoint)
 
+    val now = System.currentTimeMillis()
     val assetsTx: Seq[IssueTransactionV1] = (1 to n).map { i =>
       IssueTransactionV1
         .selfSigned(
@@ -84,7 +85,7 @@ object DexGenApp extends App with ScoptImplicits with FicusImplicits with Enumer
           decimals = 2,
           reissuable = false,
           fee = 100000000,
-          timestamp = System.currentTimeMillis()
+          timestamp = now + i
         )
         .right
         .get

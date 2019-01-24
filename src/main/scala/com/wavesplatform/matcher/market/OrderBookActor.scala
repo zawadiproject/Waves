@@ -1,6 +1,6 @@
 package com.wavesplatform.matcher.market
 
-import akka.actor.{ActorRef, Props, Status}
+import akka.actor.{ActorRef, Props, Status, SupervisorStrategy}
 import akka.http.scaladsl.model._
 import akka.persistence._
 import com.wavesplatform.common.state.ByteStr
@@ -56,6 +56,9 @@ class OrderBookActor(parent: ActorRef,
     updateMarketStatus(lastMarketStatus)
   }
 
+
+
+  override def supervisorStrategy: SupervisorStrategy = super.supervisorStrategy
   private def fullCommands: Receive = readOnlyCommands orElse snapshotsCommands orElse executeCommands
 
   private def executeCommands: Receive = {
