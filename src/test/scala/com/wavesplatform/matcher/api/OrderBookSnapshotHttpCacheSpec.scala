@@ -4,7 +4,6 @@ import java.nio.charset.StandardCharsets
 
 import akka.http.scaladsl.model.{HttpEntity, HttpResponse}
 import com.wavesplatform.OrderOps._
-import com.wavesplatform.matcher.model.MatcherModel.Price
 import com.wavesplatform.matcher.model._
 import com.wavesplatform.state.ByteStr
 import com.wavesplatform.transaction.assets.exchange.{AssetPair, Order}
@@ -12,7 +11,6 @@ import com.wavesplatform.{NTPTime, TransactionGenBase}
 import org.scalacheck.Gen
 import org.scalatest.{FreeSpec, Matchers}
 
-import scala.collection.immutable.TreeMap
 import scala.concurrent.duration._
 
 class OrderBookSnapshotHttpCacheSpec extends FreeSpec with Matchers with TransactionGenBase with NTPTime {
@@ -73,14 +71,8 @@ class OrderBookSnapshotHttpCacheSpec extends FreeSpec with Matchers with Transac
       "asks" in using {
         new OrderBookSnapshotHttpCache(
           OrderBookSnapshotHttpCache.Settings(1.minute, List(3, 9)),
-          ntpTime, { _ =>
-            Some(
-              OrderBook(
-                bids = TreeMap.empty,
-                asks = TreeMap(askLimitOrders.toSeq: _*)(OrderBook.asksOrdering)
-              )
-            )
-          }
+          ntpTime,
+          _ => None
         )
       } { cache =>
         val ob = orderBookFrom(cache.get(defaultAssetPair, Some(3)))
@@ -104,14 +96,8 @@ class OrderBookSnapshotHttpCacheSpec extends FreeSpec with Matchers with Transac
       "bids" in using {
         new OrderBookSnapshotHttpCache(
           OrderBookSnapshotHttpCache.Settings(1.minute, List(3, 9)),
-          ntpTime, { _ =>
-            Some(
-              OrderBook(
-                bids = TreeMap(bidLimitOrders.toSeq: _*)(OrderBook.bidsOrdering),
-                asks = TreeMap.empty
-              )
-            )
-          }
+          ntpTime,
+          _ => None
         )
       } { cache =>
         val ob = orderBookFrom(cache.get(defaultAssetPair, Some(3)))
@@ -135,18 +121,11 @@ class OrderBookSnapshotHttpCacheSpec extends FreeSpec with Matchers with Transac
 
     "should return the nearest depth cache" - {
       // Two levels: one is aggregated and one is not
-      val bidLimitOrders = randomBidLimitOrders
       using {
         new OrderBookSnapshotHttpCache(
           OrderBookSnapshotHttpCache.Settings(1.minute, List(3, 9)),
-          ntpTime, { _ =>
-            Some(
-              OrderBook(
-                bids = TreeMap(bidLimitOrders.toSeq: _*),
-                asks = TreeMap.empty
-              )
-            )
-          }
+          ntpTime,
+          _ => None
         )
       } { cache =>
         "None -> 9" in {
@@ -171,20 +150,9 @@ class OrderBookSnapshotHttpCacheSpec extends FreeSpec with Matchers with Transac
     }
 
     "should clear all depth caches after invalidate" in {
-      val bidLimitOrders = randomBidLimitOrders
-      val depths         = List(1, 3, 7, 9)
+      val depths = List(1, 3, 7, 9)
       using {
-        new OrderBookSnapshotHttpCache(
-          OrderBookSnapshotHttpCache.Settings(1.minute, depths),
-          ntpTime, { _ =>
-            Some(
-              OrderBook(
-                bids = TreeMap(bidLimitOrders.toSeq: _*),
-                asks = TreeMap.empty
-              )
-            )
-          }
-        )
+        new OrderBookSnapshotHttpCache(OrderBookSnapshotHttpCache.Settings(1.minute, depths), ntpTime, _ => None)
       } { cache =>
         val prev = depths.map(x => x -> orderBookFrom(cache.get(defaultAssetPair, Some(x)))).toMap
 
@@ -209,15 +177,6 @@ class OrderBookSnapshotHttpCacheSpec extends FreeSpec with Matchers with Transac
       .getData()
       .decodeString(StandardCharsets.UTF_8)
   )
-
-  private def randomBidLimitOrders: Map[Price, Vector[BuyLimitOrder]] =
-    Gen
-      .containerOfN[Vector, Order](10, orderGen)
-      .map { xs =>
-        xs.map(x => BuyLimitOrder(x.amount, x.matcherFee, x)).groupBy(_.price)
-      }
-      .sample
-      .get
 
   private def using[T <: AutoCloseable](create: => T)(f: T => Unit): Unit = {
     val x = create
